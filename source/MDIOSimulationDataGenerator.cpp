@@ -80,40 +80,169 @@ void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U
 
 void MDIOSimulationDataGenerator::CreateStart(MdioStart start)
 {
+    if( mMdc->GetCurrentBitState() == BIT_HIGH )
+    {
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+        mMdc->Transition();
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    }
 
+    BitExtractor bit_extractor( start, AnalyzerEnums::MsbFirst, 2 );
+
+    for( U32 i=0; i<2; i++ )
+    {
+        CreateBit( bit_extractor.GetNextBit() );
+    }
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
 void MDIOSimulationDataGenerator::CreateOpCode(MdioOpCode opCode)
 {
+    if( mMdc->GetCurrentBitState() == BIT_HIGH )
+    {
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+        mMdc->Transition();
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    }
 
+    BitExtractor bit_extractor( opCode, AnalyzerEnums::MsbFirst, 2 );
+
+    for( U32 i=0; i<2; i++ )
+    {
+        CreateBit( bit_extractor.GetNextBit() );
+    }
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
 void MDIOSimulationDataGenerator::CreatePhyAddress(U8 address)
 {
+    if( mMdc->GetCurrentBitState() == BIT_HIGH )
+    {
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+        mMdc->Transition();
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    }
 
+    BitExtractor bit_extractor( address, AnalyzerEnums::MsbFirst, 5 );
+
+    for( U32 i=0; i<5; i++ )
+    {
+        CreateBit( bit_extractor.GetNextBit() );
+    }
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
 void MDIOSimulationDataGenerator::CreateRegAddress(U8 address)
 {
+    if( mMdc->GetCurrentBitState() == BIT_HIGH )
+    {
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+        mMdc->Transition();
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    }
+
+    BitExtractor bit_extractor( address, AnalyzerEnums::MsbFirst, 5 );
+
+    for( U32 i=0; i<5; i++ )
+    {
+        CreateBit( bit_extractor.GetNextBit() );
+    }
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 
 }
 
-void MDIOSimulationDataGenerator::CreateDevType(U8 devType)
+void MDIOSimulationDataGenerator::CreateDevType(MdioDevType devType)
 {
+    if( mMdc->GetCurrentBitState() == BIT_HIGH )
+    {
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+        mMdc->Transition();
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    }
 
+    BitExtractor bit_extractor( devType, AnalyzerEnums::MsbFirst, 5 );
+
+    for( U32 i=0; i<5; i++ )
+    {
+        CreateBit( bit_extractor.GetNextBit() );
+    }
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
 void MDIOSimulationDataGenerator::CreateTurnAround()
 {
+    //make sure SCK is low before we toggle it
+    if( mMdc->GetCurrentBitState() == BIT_HIGH )
+    {
+        mMdc->Transition();
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    }
+
+    mMdio->TransitionIfNeeded(BIT_LOW);
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );   /** Probably it should advance a complete period */
+    mMdio->TransitionIfNeeded(BIT_HIGH);
 
 }
 
 void MDIOSimulationDataGenerator::CreateData(U16 data)
 {
+    if( mMdc->GetCurrentBitState() == BIT_HIGH )
+    {
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+        mMdc->Transition();
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    }
+
+    BitExtractor bit_extractor( data, AnalyzerEnums::MsbFirst, 16 );
+
+    for( U32 i=0; i<16; i++ )
+    {
+        CreateBit( bit_extractor.GetNextBit() );
+    }
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
+}
+
+/** Identical to CreateData(), perhaps this should go away*/
+void MDIOSimulationDataGenerator::CreateAddressOrData(U16 data)
+{
+    if( mMdc->GetCurrentBitState() == BIT_HIGH )
+    {
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+        mMdc->Transition();
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    }
+
+    BitExtractor bit_extractor( data, AnalyzerEnums::MsbFirst, 16 );
+
+    for( U32 i=0; i<16; i++ )
+    {
+        CreateBit( bit_extractor.GetNextBit() );
+    }
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 
 }
 
-void MDIOSimulationDataGenerator::CreateAddressOrData(U16 data)
+void MDIOSimulationDataGenerator::CreateBit( BitState bit_state )
 {
+    if( mMdc->GetCurrentBitState() != BIT_LOW )
+        AnalyzerHelpers::Assert( "CreateBit expects to be entered with MDC low" );
 
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) );
+
+    mMdio->TransitionIfNeeded( bit_state );
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) );
+
+    mMdc->Transition(); //posedge
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+
+    mMdc->Transition(); //negedge
 }

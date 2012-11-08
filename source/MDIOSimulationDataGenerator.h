@@ -29,7 +29,7 @@ protected:	/** MDIO specific functions */
     void CreateOpCode(MdioOpCode opCode);       /** 2 bits */
     void CreatePhyAddress(U8 address);          /** 5 bits */
     void CreateRegAddress(U8 address);          /** 5 bits (used on Clause 22) */
-    void CreateDevType(U8 devType);             /** 5 bits (used on Clause 45) */
+    void CreateDevType(MdioDevType devType);    /** 5 bits (used on Clause 45) */
     void CreateTurnAround();                    /** 2 bits: Turnaround time to change bus ownership from STA to MMD if required */
     void CreateData(U16 data);                  /** 16 bits (used on Clause 22) */
     void CreateAddressOrData(U16 data);         /** 16 bits (used on Clause 45) */
