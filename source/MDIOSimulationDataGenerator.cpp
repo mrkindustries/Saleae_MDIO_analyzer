@@ -205,6 +205,8 @@ void MDIOSimulationDataGenerator::CreateData(U16 data)
         CreateBit( bit_extractor.GetNextBit() );
     }
 
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    CreateBit( BIT_HIGH );  /** Release the bus (normally pulled up) */
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
@@ -225,8 +227,9 @@ void MDIOSimulationDataGenerator::CreateAddressOrData(U16 data)
         CreateBit( bit_extractor.GetNextBit() );
     }
 
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
+    CreateBit( BIT_HIGH );  /** Release the bus (normally pulled up) */
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
-
 }
 
 void MDIOSimulationDataGenerator::CreateBit( BitState bit_state )
