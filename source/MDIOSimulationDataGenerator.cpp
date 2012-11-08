@@ -1,11 +1,8 @@
 #include "MDIOSimulationDataGenerator.h"
-#include "MDIOAnalyzerSettings.h"
 
 #include <AnalyzerHelpers.h>
 
 MDIOSimulationDataGenerator::MDIOSimulationDataGenerator()
-:	mSerialText( "My first analyzer, woo hoo!" ),
-	mStringIndex( 0 )
 {
 }
 
@@ -18,54 +15,65 @@ void MDIOSimulationDataGenerator::Initialize( U32 simulation_sample_rate, MDIOAn
 	mSimulationSampleRateHz = simulation_sample_rate;
 	mSettings = settings;
 
-	mSerialSimulationData.SetChannel( mSettings->mInputChannel );
-	mSerialSimulationData.SetSampleRate( simulation_sample_rate );
-	mSerialSimulationData.SetInitialBitState( BIT_HIGH );
+    mClockGenerator.Init( 400000, simulation_sample_rate );
+
+    mMdio = mSimulationChannels.Add( settings->mMdioChannel, mSimulationSampleRateHz, BIT_HIGH );
+    mMdc = mSimulationChannels.Add( settings->mMdcChannel, mSimulationSampleRateHz, BIT_HIGH );
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 10.0 ) ); //insert 10 bit-periods of idle
+
+    mValue = 0;
 }
 
-U32 MDIOSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channel )
+U32 MDIOSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channels )
 {
 	U64 adjusted_largest_sample_requested = AnalyzerHelpers::AdjustSimulationTargetSample( largest_sample_requested, sample_rate, mSimulationSampleRateHz );
 
-	while( mSerialSimulationData.GetCurrentSampleNumber() < adjusted_largest_sample_requested )
-	{
-		CreateSerialByte();
-	}
+    while( mMdc->GetCurrentSampleNumber() < adjusted_largest_sample_requested )
+    {
+        /** TODO: check in the settings if we expect C22 or C45 protocol, different packets should be sent accordingly */
+        CreateMdioC45Transaction( C45_READ,    // OpCode
+                                  0x0A,        // PHY Address
+                                  DEV_PCS,     // DevType
+                                  0x2584,      // Register Address
+                                  mValue++     // Data
+                                  );  /** TODO: the OpCode, PHY, DevType, and data should be random to cover every combination */
 
-	*simulation_channel = &mSerialSimulationData;
-	return 1;
+        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 20.0 ) ); //insert 20 bit-periods of idle
+    }
+
+    *simulation_channels = mSimulationChannels.GetArray();
+    return mSimulationChannels.GetCount();
 }
 
-void MDIOSimulationDataGenerator::CreateSerialByte()
+void MDIOSimulationDataGenerator::CreateMdioC22Transaction( MdioOpCode opCode, U8 phyAddress, U8 regAddress, U16 data )
 {
-	U32 samples_per_bit = mSimulationSampleRateHz / mSettings->mBitRate;
+    /** A Clause 22 transaction consists of ONE frame containing a 5 bit register address, and a 16 bit data */
+    CreateStart(C22_START);
+    CreateOpCode(opCode);
+    CreatePhyAddress(phyAddress);
+    CreateRegAddress(regAddress);
+    CreateTurnAround();
+    CreateData(data);
+}
 
-	U8 byte = mSerialText[ mStringIndex ];
-	mStringIndex++;
-	if( mStringIndex == mSerialText.size() )
-		mStringIndex = 0;
+void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U8 phyAddress, MdioDevType devType, U16 regAddress, U16 data )
+{
+    /** A Clause 45 transaction consists of TWO frames. The first frame contains a 16 bit register address, the second has the 16 bit data */
 
-	//we're currenty high
-	//let's move forward a little
-	mSerialSimulationData.Advance( samples_per_bit * 10 );
+    /** First frame */
+    CreateStart(C45_START);
+    CreateOpCode(C45_ADDRESS);
+    CreatePhyAddress(phyAddress);
+    CreateDevType(devType);
+    CreateTurnAround();
+    CreateAddressOrData(regAddress);
 
-	mSerialSimulationData.Transition();  //low-going edge for start bit
-	mSerialSimulationData.Advance( samples_per_bit );  //add start bit time
-
-	U8 mask = 0x1 << 7;
-	for( U32 i=0; i<8; i++ )
-	{
-		if( ( byte & mask ) != 0 )
-			mSerialSimulationData.TransitionIfNeeded( BIT_HIGH );
-		else
-			mSerialSimulationData.TransitionIfNeeded( BIT_LOW );
-
-		mSerialSimulationData.Advance( samples_per_bit );
-		mask = mask >> 1;
-	}
-
-	mSerialSimulationData.TransitionIfNeeded( BIT_HIGH ); //we need to end high
-
-	//lets pad the end a bit for the stop bit:
-	mSerialSimulationData.Advance( samples_per_bit );
+    /** Second frame */
+    CreateStart(C45_START);
+    CreateOpCode(opCode);
+    CreatePhyAddress(phyAddress);
+    CreateDevType(devType);
+    CreateTurnAround();
+    CreateAddressOrData(data);
 }
