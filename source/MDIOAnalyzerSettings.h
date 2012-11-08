@@ -16,12 +16,14 @@ public:
 	virtual const char* SaveSettings();
 
 	
-	Channel mInputChannel;
-	U32 mBitRate;
+    Channel mDataChannel;
+    Channel mClkChannel;
+    U32 mClauseVersion;
 
 protected:
-	std::auto_ptr< AnalyzerSettingInterfaceChannel >	mInputChannelInterface;
-	std::auto_ptr< AnalyzerSettingInterfaceInteger >	mBitRateInterface;
+    std::auto_ptr< AnalyzerSettingInterfaceChannel >	mDataChannelInterface;
+    std::auto_ptr< AnalyzerSettingInterfaceChannel >	mClkChannelInterface;
+    std::auto_ptr< AnalyzerSettingInterfaceNumberList >	mClauseVersionInterface;
 };
 
 #endif //MDIO_ANALYZER_SETTINGS

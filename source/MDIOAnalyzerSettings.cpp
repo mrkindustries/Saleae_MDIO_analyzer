@@ -3,28 +3,34 @@
 
 
 MDIOAnalyzerSettings::MDIOAnalyzerSettings()
-:	mInputChannel( UNDEFINED_CHANNEL ),
-	mBitRate( 9600 )
+:	mDataChannel( UNDEFINED_CHANNEL ),
+    mClkChannel( UNDEFINED_CHANNEL ),
+    mClauseVersion( 45 )
 {
-	mInputChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
-	mInputChannelInterface->SetTitleAndTooltip( "Serial", "Standard MDIO" );
-	mInputChannelInterface->SetChannel( mInputChannel );
+    mDataChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
+    mDataChannelInterface->SetTitleAndTooltip( "MDIO", "MDIO data bus" );
+    mDataChannelInterface->SetChannel( mDataChannel );
 
-	mBitRateInterface.reset( new AnalyzerSettingInterfaceInteger() );
-	mBitRateInterface->SetTitleAndTooltip( "Bit Rate (Bits/S)",  "Specify the bit rate in bits per second." );
-	mBitRateInterface->SetMax( 6000000 );
-	mBitRateInterface->SetMin( 1 );
-	mBitRateInterface->SetInteger( mBitRate );
+    mClkChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
+    mClkChannelInterface->SetTitleAndTooltip( "MDC", "MDIO clock line " );
+    mClkChannelInterface->SetChannel( mClkChannel );
 
-	AddInterface( mInputChannelInterface.get() );
-	AddInterface( mBitRateInterface.get() );
+    mClauseVersionInterface.reset( new AnalyzerSettingInterfaceNumberList() );
+    mClauseVersionInterface->SetTitleAndTooltip( "Protocol Version",  "Version can be Clause 22 or Clause 45, newer devices will likely be Clause 45" );
+    mClauseVersionInterface->AddNumber(22, "Clause 22", "The Clause 22 MDIO interface specifies 5 PHY-address bits which allows for up to 32 PHY devices attached to a single MDIO data line. Thus a single MAC can control 32 PHY's.\nIt also specifies 5 register-address bits which allows up to 32 control registers per PHY");
+    mClauseVersionInterface->AddNumber(45, "Clause 45", "The 802.3ae Clause 45 interface allows for 16-bit register addressing (65536 registers) for 32 PHY devices per MDIO. These features were added for 10 Gigabit Ethernet support and use different opcodes and start sequences. Opcodes 00(set address) and 11(read)/01(write)/10(read increment) are used as two serial transactions to read and write registers.");
+
+    AddInterface( mDataChannelInterface.get() );
+    AddInterface( mClkChannelInterface.get() );
+    AddInterface( mClauseVersionInterface.get() );
 
 	AddExportOption( 0, "Export as text/csv file" );
 	AddExportExtension( 0, "text", "txt" );
 	AddExportExtension( 0, "csv", "csv" );
 
 	ClearChannels();
-	AddChannel( mInputChannel, "Serial", false );
+    AddChannel( mDataChannel, "MDIO", false );
+    AddChannel( mClkChannel, "MDC", false );
 }
 
 MDIOAnalyzerSettings::~MDIOAnalyzerSettings()
@@ -33,19 +39,22 @@ MDIOAnalyzerSettings::~MDIOAnalyzerSettings()
 
 bool MDIOAnalyzerSettings::SetSettingsFromInterfaces()
 {
-	mInputChannel = mInputChannelInterface->GetChannel();
-	mBitRate = mBitRateInterface->GetInteger();
+    mDataChannel = mDataChannelInterface->GetChannel();
+    mClkChannel = mClkChannelInterface->GetChannel();
+    mClauseVersion = mClauseVersionInterface->GetNumber();
 
 	ClearChannels();
-	AddChannel( mInputChannel, "MDIO", true );
+    AddChannel( mDataChannel, "MDIO", true );
+    AddChannel( mClkChannel, "MDC", true );
 
 	return true;
 }
 
 void MDIOAnalyzerSettings::UpdateInterfacesFromSettings()
 {
-	mInputChannelInterface->SetChannel( mInputChannel );
-	mBitRateInterface->SetInteger( mBitRate );
+    mDataChannelInterface->SetChannel( mDataChannel );
+    mClkChannelInterface->SetChannel( mClkChannel );
+    mClauseVersionInterface->SetNumber( mClauseVersion );
 }
 
 void MDIOAnalyzerSettings::LoadSettings( const char* settings )
@@ -53,11 +62,13 @@ void MDIOAnalyzerSettings::LoadSettings( const char* settings )
 	SimpleArchive text_archive;
 	text_archive.SetString( settings );
 
-	text_archive >> mInputChannel;
-	text_archive >> mBitRate;
+    text_archive >> mDataChannel;
+    text_archive >> mClkChannel;
+    text_archive >> mClauseVersion;
 
 	ClearChannels();
-	AddChannel( mInputChannel, "MDIO", true );
+    AddChannel( mDataChannel, "MDIO", true );
+    AddChannel( mClkChannel, "MDC", true );
 
 	UpdateInterfacesFromSettings();
 }
@@ -66,8 +77,9 @@ const char* MDIOAnalyzerSettings::SaveSettings()
 {
 	SimpleArchive text_archive;
 
-	text_archive << mInputChannel;
-	text_archive << mBitRate;
+    text_archive << mDataChannel;
+    text_archive << mClkChannel;
+    text_archive << mClauseVersion;
 
 	return SetReturnString( text_archive.GetString() );
 }
