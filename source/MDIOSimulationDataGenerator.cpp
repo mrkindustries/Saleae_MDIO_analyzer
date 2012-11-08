@@ -77,3 +77,43 @@ void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U
     CreateTurnAround();
     CreateAddressOrData(data);
 }
+
+void MDIOSimulationDataGenerator::CreateStart(MdioStart start)
+{
+
+}
+
+void MDIOSimulationDataGenerator::CreateOpCode(MdioOpCode opCode)
+{
+
+}
+
+void MDIOSimulationDataGenerator::CreatePhyAddress(U8 address)
+{
+
+}
+
+void MDIOSimulationDataGenerator::CreateRegAddress(U8 address)
+{
+
+}
+
+void MDIOSimulationDataGenerator::CreateDevType(U8 devType)
+{
+
+}
+
+void MDIOSimulationDataGenerator::CreateTurnAround()
+{
+
+}
+
+void MDIOSimulationDataGenerator::CreateData(U16 data)
+{
+
+}
+
+void MDIOSimulationDataGenerator::CreateAddressOrData(U16 data)
+{
+
+}

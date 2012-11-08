@@ -26,7 +26,7 @@ protected:	/** MDIO specific functions */
     void CreateMdioC22Transaction( MdioOpCode OpCode, U8 phyAddress, U8 regAddress, U16 data );
     void CreateMdioC45Transaction( MdioOpCode opCode, U8 phyAddress, MdioDevType devType, U16 regAddress, U16 data );
     void CreateStart(MdioStart start);          /** 2 bits: 01 for Clause 22, 00 for Clause 45 */
-    void CreateOpCode(MdioOpCode OpCode);       /** 2 bits */
+    void CreateOpCode(MdioOpCode opCode);       /** 2 bits */
     void CreatePhyAddress(U8 address);          /** 5 bits */
     void CreateRegAddress(U8 address);          /** 5 bits (used on Clause 22) */
     void CreateDevType(U8 devType);             /** 5 bits (used on Clause 45) */
