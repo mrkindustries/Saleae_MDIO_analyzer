@@ -22,12 +22,10 @@ public:
 	
     Channel mMdioChannel;
     Channel mMdcChannel;
-    U32 mClauseVersion;
 
 protected:
     std::auto_ptr< AnalyzerSettingInterfaceChannel >	mMdioChannelInterface;
     std::auto_ptr< AnalyzerSettingInterfaceChannel >	mMdcChannelInterface;
-    std::auto_ptr< AnalyzerSettingInterfaceNumberList >	mClauseVersionInterface;
 };
 
 #endif //MDIO_ANALYZER_SETTINGS

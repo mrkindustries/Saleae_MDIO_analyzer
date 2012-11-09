@@ -1,7 +1,5 @@
 #include "MDIOSimulationDataGenerator.h"
 
-#include <AnalyzerHelpers.h>
-
 MDIOSimulationDataGenerator::MDIOSimulationDataGenerator()
 {
 }
@@ -210,26 +208,10 @@ void MDIOSimulationDataGenerator::CreateData(U16 data)
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
-/** Identical to CreateData(), perhaps this should go away*/
+/** NOTE: currently it has the same behaviour as CreateData(U16) */
 void MDIOSimulationDataGenerator::CreateAddressOrData(U16 data)
 {
-    if( mMdc->GetCurrentBitState() == BIT_HIGH )
-    {
-        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
-        mMdc->Transition();
-        mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
-    }
-
-    BitExtractor bit_extractor( data, AnalyzerEnums::MsbFirst, 16 );
-
-    for( U32 i=0; i<16; i++ )
-    {
-        CreateBit( bit_extractor.GetNextBit() );
-    }
-
-    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
-    CreateBit( BIT_HIGH );  /** Release the bus (normally pulled up) */
-    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
+    CreateData(data); 
 }
 
 void MDIOSimulationDataGenerator::CreateBit( BitState bit_state )
@@ -243,9 +225,9 @@ void MDIOSimulationDataGenerator::CreateBit( BitState bit_state )
 
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) );
 
-    mMdc->Transition(); //posedge
+    mMdc->Transition(); // posedge
 
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
 
-    mMdc->Transition(); //negedge
+    mMdc->Transition(); // negedge
 }
