@@ -92,7 +92,6 @@ void MDIOSimulationDataGenerator::CreateStart(MdioStart start)
         CreateBit( bit_extractor.GetNextBit() );
     }
 
-    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
 void MDIOSimulationDataGenerator::CreateOpCode(MdioOpCode opCode)
@@ -111,7 +110,6 @@ void MDIOSimulationDataGenerator::CreateOpCode(MdioOpCode opCode)
         CreateBit( bit_extractor.GetNextBit() );
     }
 
-    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
 void MDIOSimulationDataGenerator::CreatePhyAddress(U8 address)
@@ -130,7 +128,6 @@ void MDIOSimulationDataGenerator::CreatePhyAddress(U8 address)
         CreateBit( bit_extractor.GetNextBit() );
     }
 
-    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
 void MDIOSimulationDataGenerator::CreateRegAddress(U8 address)
@@ -148,8 +145,6 @@ void MDIOSimulationDataGenerator::CreateRegAddress(U8 address)
     {
         CreateBit( bit_extractor.GetNextBit() );
     }
-
-    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 
 }
 
@@ -169,7 +164,6 @@ void MDIOSimulationDataGenerator::CreateDevType(MdioDevType devType)
         CreateBit( bit_extractor.GetNextBit() );
     }
 
-    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
 void MDIOSimulationDataGenerator::CreateTurnAround()
@@ -205,7 +199,6 @@ void MDIOSimulationDataGenerator::CreateData(U16 data)
 
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) );
     CreateBit( BIT_HIGH );  /** Release the bus (normally pulled up) */
-    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 4.0 ) );
 }
 
 /** NOTE: currently it has the same behaviour as CreateData(U16) */

@@ -4,7 +4,7 @@
 #include <SimulationChannelDescriptor.h>
 #include <AnalyzerSettings.h>
 #include <AnalyzerHelpers.h>
-#include <MDIOAnalyzerSettings.h>
+#include "MDIOAnalyzerSettings.h"
 
 class MDIOAnalyzerSettings;
 
