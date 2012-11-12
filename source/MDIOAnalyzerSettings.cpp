@@ -5,7 +5,7 @@ MDIOAnalyzerSettings::MDIOAnalyzerSettings()
 :	mMdioChannel( UNDEFINED_CHANNEL ),
     mMdcChannel( UNDEFINED_CHANNEL )
 {
-    mMdioChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
+	mMdioChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
     mMdioChannelInterface->SetTitleAndTooltip( "MDIO", "MDIO data bus" );
     mMdioChannelInterface->SetChannel( mMdioChannel );
 

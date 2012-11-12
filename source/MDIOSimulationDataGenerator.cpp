@@ -13,10 +13,12 @@ void MDIOSimulationDataGenerator::Initialize( U32 simulation_sample_rate, MDIOAn
 	mSimulationSampleRateHz = simulation_sample_rate;
 	mSettings = settings;
 
-    mClockGenerator.Init( 400000, simulation_sample_rate );
-
-    mMdio = mSimulationChannels.Add( settings->mMdioChannel, mSimulationSampleRateHz, BIT_HIGH );
-    mMdc = mSimulationChannels.Add( settings->mMdcChannel, mSimulationSampleRateHz, BIT_HIGH );
+	// 400 Khz is the most used frequency
+	// 1.7 Mhz is the frequency of the MDC of the ethernet in STM32
+    mClockGenerator.Init( 400000, mSimulationSampleRateHz ); 
+	
+    mMdio = mSimulationChannels.Add( mSettings->mMdioChannel, mSimulationSampleRateHz, BIT_HIGH );
+    mMdc = mSimulationChannels.Add( mSettings->mMdcChannel, mSimulationSampleRateHz, BIT_HIGH );
 
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 10.0 ) ); //insert 10 bit-periods of idle
 

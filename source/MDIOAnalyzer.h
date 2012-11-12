@@ -18,11 +18,17 @@ public:
 
 	virtual const char* GetAnalyzerName() const;
 	virtual bool NeedsRerun();
+	
+protected: // functions
+	void AdvanceToStartFrame();
+	void StartFrame();
 
 protected: //vars
 	std::auto_ptr< MDIOAnalyzerSettings > mSettings;
 	std::auto_ptr< MDIOAnalyzerResults > mResults;
-	AnalyzerChannelData* mSerial;
+	
+	AnalyzerChannelData* mMdio;
+	AnalyzerChannelData* mMdc;
 
 	MDIOSimulationDataGenerator mSimulationDataGenerator;
 	bool mSimulationInitilized;

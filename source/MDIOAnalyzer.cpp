@@ -17,17 +17,26 @@ MDIOAnalyzer::~MDIOAnalyzer()
 
 void MDIOAnalyzer::WorkerThread()
 {
+	// std::cout << "Hi" << std::endl;
+	/*
 	mResults.reset( new MDIOAnalyzerResults( this, mSettings.get() ) );
 	SetAnalyzerResults( mResults.get() );
-	mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannel );
+	mResults->AddChannelBubblesWillAppearOn( mSettings->mMdioChannel );
 
 	mSampleRateHz = GetSampleRate();
 
-	mSerial = GetAnalyzerChannelData( mSettings->mInputChannel );
+	// mMDio and mMdc have the actual data from the channel
+	mMdio = GetAnalyzerChannelData( mSettings->mMdioChannel );
+	mMdc = GetAnalyzerChannelData( mSettings->mMdcChannel );
 
-	if( mSerial->GetBitState() == BIT_LOW )
-		mSerial->AdvanceToNextEdge();
+	// go to the high state (before the start frame)
+	if( mMdio->GetBitState() == BIT_LOW )
+		mMdio->AdvanceToNextEdge();
+	
+	//AdvanceToStartFrame();
+	//StartFrame();
 
+	/*
 	U32 samples_per_bit = mSampleRateHz / mSettings->mBitRate;
 	U32 samples_to_first_center_of_first_data_bit = U32( 1.5 * double( mSampleRateHz ) / double( mSettings->mBitRate ) );
 
@@ -36,21 +45,21 @@ void MDIOAnalyzer::WorkerThread()
 		U8 data = 0;
 		U8 mask = 1 << 7;
 		
-		mSerial->AdvanceToNextEdge(); //falling edge -- beginning of the start bit
+		mMdio->AdvanceToNextEdge(); //falling edge -- beginning of the start bit
 
-		U64 starting_sample = mSerial->GetSampleNumber();
+		U64 starting_sample = mMdio->GetSampleNumber();
 
-		mSerial->Advance( samples_to_first_center_of_first_data_bit );
+		mMdio->Advance( samples_to_first_center_of_first_data_bit );
 
 		for( U32 i=0; i<8; i++ )
 		{
 			//let's put a dot exactly where we sample this bit:
-			mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Dot, mSettings->mInputChannel );
+			mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Dot, mSettings->mInputChannel );
 
-			if( mSerial->GetBitState() == BIT_HIGH )
+			if( mMdio->GetBitState() == BIT_HIGH )
 				data |= mask;
 
-			mSerial->Advance( samples_per_bit );
+			mMdio->Advance( samples_per_bit );
 
 			mask = mask >> 1;
 		}
@@ -61,12 +70,49 @@ void MDIOAnalyzer::WorkerThread()
 		frame.mData1 = data;
 		frame.mFlags = 0;
 		frame.mStartingSampleInclusive = starting_sample;
-		frame.mEndingSampleInclusive = mSerial->GetSampleNumber();
+		frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
 
 		mResults->AddFrame( frame );
 		mResults->CommitResults();
 		ReportProgress( frame.mEndingSampleInclusive );
 	}
+	*/
+	
+}
+
+void MDIOAnalyzer::AdvanceToStartFrame() 
+{
+	for( ; ; )
+	{
+		// starts high 
+		mMdio->AdvanceToNextEdge();
+
+		if( mMdio->GetBitState() == BIT_LOW )
+		{
+			mMdc->AdvanceToAbsPosition( mMdio->GetSampleNumber() );
+			break;
+		}	
+	}
+	
+	// Put a marker in the start position
+	mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Start, mSettings->mMdioChannel );
+}
+
+void MDIOAnalyzer::StartFrame() 
+{
+	/*
+	// is MDIO line is low
+	mMdio->AdvanceToNextEdge();
+	if( mMdio->GetBitState() == BIT_LOW )
+		{
+			mMdc->AdvanceToAbsPosition( mMdio->GetSampleNumber() );
+			break;
+		}	
+	}
+	
+	// Put a marker in the start position
+	mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Start, mSettings->mMdioChannel );
+	*/
 }
 
 bool MDIOAnalyzer::NeedsRerun()
@@ -87,7 +133,7 @@ U32 MDIOAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_s
 
 U32 MDIOAnalyzer::GetMinimumSampleRateHz()
 {
-	return mSettings->mBitRate * 4;
+	return 2000000; // WARNING: check
 }
 
 const char* MDIOAnalyzer::GetAnalyzerName() const
