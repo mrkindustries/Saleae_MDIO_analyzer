@@ -5,6 +5,8 @@
 #include "MDIOAnalyzerResults.h"
 #include "MDIOSimulationDataGenerator.h"
 
+enum MDIOPacketType { MDIO_C22_PACKET, MDIO_C45_PACKET };
+
 class MDIOAnalyzerSettings;
 class ANALYZER_EXPORT MDIOAnalyzer : public Analyzer
 {
@@ -21,7 +23,17 @@ public:
 	
 protected: // functions
 	void AdvanceToStartFrame();
-	void StartFrame();
+	
+	void ProcessStartFrame();
+	void ProcessOpcodeFrame();
+	void ProcessPhyAddrFrame();
+	void ProcessRegAddrDevTypeFrame();
+	void ProcessAddrDataFrame();
+	
+	bool GetBit( BitState& bit_state, U64& mdc_rising_edge );
+	
+	MDIOFrameType GetDevType(const U64 & value);
+	void ProcessTAFrame();
 
 protected: //vars
 	std::auto_ptr< MDIOAnalyzerSettings > mSettings;
@@ -32,6 +44,10 @@ protected: //vars
 
 	MDIOSimulationDataGenerator mSimulationDataGenerator;
 	bool mSimulationInitilized;
+	
+	MDIOPacketType currentPacket;
+	
+	std::vector<U64> mMdcArrowLocations;
 
 	//Serial analysis vars:
 	U32 mSampleRateHz;

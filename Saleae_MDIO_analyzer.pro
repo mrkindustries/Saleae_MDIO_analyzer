@@ -7,11 +7,14 @@ TARGET = MDIOAnalyzer
 
 INCLUDEPATH += \
           ./source \
-          ../include \
+          ../include
+          
+DEFINES -= QT_WEBKIT
+
 LIBS += \
           -L../lib \
           -lAnalyzer
-
+          
 DEPENDPATH += ./source
 	
 Release:DESTDIR = release
@@ -20,8 +23,11 @@ Release:OBJECTS_DIR = release
 Debug:DESTDIR = debug
 Debug:OBJECTS_DIR = debug
 	
-CXXFLAGS_DEBUG = -O0 -w -fpic -g
-CXXFLAGS_RELEASE = -O3 -w -fpic  
+QMAKE_CXXFLAGS_DEBUG = -O0 -w -fpic -g
+QMAKE_CXXFLAGS_RELEASE = -O3 -w -fpic  
+
+QMAKE_LFLAGS_DEBUG = -O0 -w -fpic -g
+QMAKE_LFLAGS_RELEASE = -O0 -w -fpic -g
 
 SOURCES += \
           source/MDIOAnalyzer.cpp \

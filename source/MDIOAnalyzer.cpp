@@ -17,8 +17,6 @@ MDIOAnalyzer::~MDIOAnalyzer()
 
 void MDIOAnalyzer::WorkerThread()
 {
-	// std::cout << "Hi" << std::endl;
-	/*
 	mResults.reset( new MDIOAnalyzerResults( this, mSettings.get() ) );
 	SetAnalyzerResults( mResults.get() );
 	mResults->AddChannelBubblesWillAppearOn( mSettings->mMdioChannel );
@@ -33,56 +31,35 @@ void MDIOAnalyzer::WorkerThread()
 	if( mMdio->GetBitState() == BIT_LOW )
 		mMdio->AdvanceToNextEdge();
 	
-	//AdvanceToStartFrame();
-	//StartFrame();
-
-	/*
-	U32 samples_per_bit = mSampleRateHz / mSettings->mBitRate;
-	U32 samples_to_first_center_of_first_data_bit = U32( 1.5 * double( mSampleRateHz ) / double( mSettings->mBitRate ) );
-
 	for( ; ; )
-	{
-		U8 data = 0;
-		U8 mask = 1 << 7;
+	{		
+		AdvanceToStartFrame();
 		
-		mMdio->AdvanceToNextEdge(); //falling edge -- beginning of the start bit
-
-		U64 starting_sample = mMdio->GetSampleNumber();
-
-		mMdio->Advance( samples_to_first_center_of_first_data_bit );
-
-		for( U32 i=0; i<8; i++ )
+		ProcessStartFrame();
+		ProcessOpcodeFrame();
+		ProcessPhyAddrFrame();
+		ProcessRegAddrDevTypeFrame();
+		ProcessTAFrame();
+		ProcessAddrDataFrame();
+		
+		// show arrows in clock posedge
+		U32 count = mMdcArrowLocations.size();
+		for( U32 i=0; i<count; i++ ) 
 		{
-			//let's put a dot exactly where we sample this bit:
-			mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Dot, mSettings->mInputChannel );
-
-			if( mMdio->GetBitState() == BIT_HIGH )
-				data |= mask;
-
-			mMdio->Advance( samples_per_bit );
-
-			mask = mask >> 1;
+			mResults->AddMarker( mMdcArrowLocations[i], AnalyzerResults::UpArrow, mSettings->mMdcChannel );
 		}
-
-
-		//we have a byte to save. 
-		Frame frame;
-		frame.mData1 = data;
-		frame.mFlags = 0;
-		frame.mStartingSampleInclusive = starting_sample;
-		frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
-
-		mResults->AddFrame( frame );
+		mMdcArrowLocations.clear();
+		
+		// finally commit the results to the MDIOAnalyzerResults class
 		mResults->CommitResults();
-		ReportProgress( frame.mEndingSampleInclusive );
 	}
-	*/
+		
 	
 }
 
 void MDIOAnalyzer::AdvanceToStartFrame() 
 {
-	for( ; ; )
+	for( ; ; ) 
 	{
 		// starts high 
 		mMdio->AdvanceToNextEdge();
@@ -93,26 +70,223 @@ void MDIOAnalyzer::AdvanceToStartFrame()
 			break;
 		}	
 	}
-	
+
 	// Put a marker in the start position
 	mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Start, mSettings->mMdioChannel );
 }
 
-void MDIOAnalyzer::StartFrame() 
+void MDIOAnalyzer::ProcessStartFrame() 
 {
-	/*
-	// is MDIO line is low
-	mMdio->AdvanceToNextEdge();
-	if( mMdio->GetBitState() == BIT_LOW )
-		{
-			mMdc->AdvanceToAbsPosition( mMdio->GetSampleNumber() );
-			break;
-		}	
+	// starting sample of the start frame
+	U64 starting_sample = mMdio->GetSampleNumber();
+
+	// get the value of the two bits of the start frame
+	U64 mdc_rising_edge;
+	BitState bit0, bit1;
+	GetBit(bit0, mdc_rising_edge); // sample first bit (TODO check if first bit is 0)
+	GetBit(bit1, mdc_rising_edge); // sample second bit
+	
+	// create and set the start frame
+	Frame frame;
+	frame.mType = ( bit1 == BIT_HIGH ) ? MDIO_C22_START : MDIO_C45_START;
+	frame.mFlags = 0;
+	frame.mStartingSampleInclusive = starting_sample;
+	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
+	
+	mResults->AddFrame( frame );
+	ReportProgress( frame.mEndingSampleInclusive );
+	
+	currentPacket = ( frame.mType == MDIO_C22_START ) ? MDIO_C22_PACKET : MDIO_C45_PACKET;
+	
+}
+
+void MDIOAnalyzer::ProcessOpcodeFrame() 
+{
+	// starting sample of the start frame
+	U64 starting_sample = mMdio->GetSampleNumber()+1;
+
+	// get the value of the two bits of the start frame
+	U64 mdc_rising_edge;
+	BitState bit0, bit1;
+	GetBit(bit0, mdc_rising_edge); // sample first bit (TODO check if first bit is 0)
+	// U64 starting_sample = mdc_rising_edge; // or set the mStartingSampleInclusive here... 
+	GetBit(bit1, mdc_rising_edge); // sample second bit
+	
+	// reconstruct the opcode 
+	DataBuilder opcode;
+	U64 value;
+	opcode.Reset( &value, AnalyzerEnums::MsbFirst, 2 );
+	opcode.AddBit(bit0);
+	opcode.AddBit(bit1);
+	
+	// create and set the opcode frame
+	Frame frame;
+	
+	switch( value ) 
+	{
+		case C45_ADDRESS: 					frame.mType = MDIO_C45_OP_ADDR; break;
+		case C45_WRITE | C22_WRITE: 		frame.mType = MDIO_OP_W; break;
+		case C22_READ | C45_READ_AND_ADDR:	frame.mType = (currentPacket == MDIO_C22_PACKET) 
+														  ? MDIO_OP_R : MDIO_C45_OP_READ_INC_ADDR; break;
+		case C45_READ:						frame.mType = MDIO_OP_R; break;
+		default: 							frame.mType = MDIO_UNKNOWN;
+	}
+	frame.mFlags = 0;
+	frame.mStartingSampleInclusive = starting_sample;
+	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
+	
+	mResults->AddFrame( frame );
+	ReportProgress( frame.mEndingSampleInclusive );
+}
+
+void MDIOAnalyzer::ProcessPhyAddrFrame() 
+{
+	// starting sample of the start frame
+	U64 starting_sample = mMdio->GetSampleNumber()+1;
+	
+	// get the value of the the 5 bits of the phyaddr frame
+	DataBuilder opcode;
+	U64 value;
+	opcode.Reset( &value, AnalyzerEnums::MsbFirst, 5 );
+	U64 mdc_rising_edge;
+	for(U32 i=0; i < 5; ++i) 
+	{
+		BitState bit;
+		GetBit(bit, mdc_rising_edge);
+		opcode.AddBit(bit);
 	}
 	
-	// Put a marker in the start position
-	mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Start, mSettings->mMdioChannel );
-	*/
+	// create and set the phyaddr frame
+	Frame frame;
+	frame.mType = MDIO_PHYADDR;	
+	frame.mData1 = value;
+	frame.mFlags = 0;
+	frame.mStartingSampleInclusive = starting_sample;
+	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
+	
+	mResults->AddFrame( frame );
+	ReportProgress( frame.mEndingSampleInclusive );
+}
+
+void MDIOAnalyzer::ProcessRegAddrDevTypeFrame() 
+{
+	// starting sample of the start frame
+	U64 starting_sample = mMdio->GetSampleNumber()+1;
+	
+	// get the value of the 5 bits of register address or devtype frame
+	DataBuilder opcode;
+	U64 value;
+	opcode.Reset( &value, AnalyzerEnums::MsbFirst, 5 );
+	U64 mdc_rising_edge;
+	for(U32 i=0; i < 5; ++i) 
+	{
+		BitState bit;
+		GetBit(bit, mdc_rising_edge);
+		opcode.AddBit(bit);
+	}
+	
+	// create and set the phyaddr frame
+	Frame frame;
+	if (currentPacket == MDIO_C22_PACKET) 
+	{
+		frame.mType = MDIO_C22_REGADDR; 
+	}
+	else 
+	{
+		frame.mType = GetDevType(value);
+	}
+	frame.mData1 = value;
+	frame.mFlags = 0;
+	frame.mStartingSampleInclusive = starting_sample;
+	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
+	
+	mResults->AddFrame( frame );
+	ReportProgress( frame.mEndingSampleInclusive );
+}
+
+void MDIOAnalyzer::ProcessTAFrame()
+{
+	// starting sample of the TA frame
+	U64 starting_sample = mMdio->GetSampleNumber()+1;
+
+	// get the value of the two bits of the start frame
+	U64 mdc_rising_edge;
+	BitState bit0, bit1;
+	// TODO: check TA bits?
+	GetBit(bit0, mdc_rising_edge); 
+	GetBit(bit1, mdc_rising_edge); 
+	
+	Frame frame;
+	frame.mType = MDIO_TA;
+	frame.mFlags = 0;
+	frame.mStartingSampleInclusive = starting_sample;
+	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
+	
+	mResults->AddFrame( frame );
+	ReportProgress( frame.mEndingSampleInclusive );
+	
+}
+
+void MDIOAnalyzer::ProcessAddrDataFrame() 
+{
+	U64 starting_sample = mMdio->GetSampleNumber()+1;
+	
+	DataBuilder opcode;
+	U64 value;
+	opcode.Reset( &value, AnalyzerEnums::MsbFirst, 16 );
+	U64 mdc_rising_edge;
+	for(U32 i=0; i < 16; ++i) 
+	{
+		BitState bit;
+		GetBit(bit, mdc_rising_edge);
+		opcode.AddBit(bit);
+	}
+	
+	Frame frame;
+	frame.mType = (currentPacket == MDIO_C22_PACKET) ? MDIO_C22_DATA : MDIO_C45_ADDRDATA;	
+	frame.mData1 = value;
+	frame.mFlags = 0;
+	frame.mStartingSampleInclusive = starting_sample;
+	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
+	
+	// TODO: better position for the "end" marker
+	// Put a marker in the end of the packet
+	mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mMdioChannel );
+	
+	mResults->AddFrame( frame );
+	ReportProgress( frame.mEndingSampleInclusive );
+}
+
+
+MDIOFrameType MDIOAnalyzer::GetDevType(const U64 & value)
+{
+	switch (value) {
+		case DEV_RESERVED: 	return MDIO_C45_DEVTYPE_RESERVED;
+		case DEV_PMD_PMA: 	return MDIO_C45_DEVTYPE_PMD_PMA;
+		case DEV_WIS: 		return MDIO_C45_DEVTYPE_WIS;
+		case DEV_PCS: 		return MDIO_C45_DEVTYPE_PCS;
+		case DEV_PHY_XS: 	return MDIO_C45_DEVTYPE_PHY_XS;
+		case DEV_DTE_XS: 	return MDIO_C45_DEVTYPE_DTE_XS;
+		default: 			return MDIO_C45_DEVTYPE_OTHER;
+	}
+}
+
+bool MDIOAnalyzer::GetBit( BitState& bit_state, U64& mdc_rising_edge )
+{
+	// mMdc must be low coming into this function
+	mMdc->AdvanceToNextEdge(); //posedge
+	mdc_rising_edge = mMdc->GetSampleNumber();
+	mMdcArrowLocations.push_back( mdc_rising_edge );
+	
+	mMdio->AdvanceToAbsPosition( mdc_rising_edge );  //data read on SCL posedge
+
+	bit_state = mMdio->GetBitState(); // sample the mMdio channel
+	bool result = true;
+
+	mMdc->AdvanceToNextEdge(); // negedge 
+	mMdio->AdvanceToAbsPosition( mMdc->GetSampleNumber() ); // advance mMdio 
+	
+	return result;
 }
 
 bool MDIOAnalyzer::NeedsRerun()
@@ -133,7 +307,7 @@ U32 MDIOAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_s
 
 U32 MDIOAnalyzer::GetMinimumSampleRateHz()
 {
-	return 2000000; // WARNING: check
+	return 2000000; // Minimum sampling rate: 2 Mhz.
 }
 
 const char* MDIOAnalyzer::GetAnalyzerName() const
