@@ -13,40 +13,54 @@ void MDIOSimulationDataGenerator::Initialize( U32 simulation_sample_rate, MDIOAn
 	mSimulationSampleRateHz = simulation_sample_rate;
 	mSettings = settings;
 
-	// 400 Khz is the most used frequency
+	// 400 Khz is the most frequently used frequency
 	mClockGenerator.Init( 400000, mSimulationSampleRateHz ); 
 	
+	// Set the simulation channels
     mMdio = mSimulationChannels.Add( mSettings->mMdioChannel, mSimulationSampleRateHz, BIT_HIGH );
     mMdc = mSimulationChannels.Add( mSettings->mMdcChannel, mSimulationSampleRateHz, BIT_HIGH );
 
-    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 20.0 ) ); //insert 10 bit-periods of idle
+	// start the simulation with 10 periods of idle
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 20.0 ) );
 
-    mValue = 0;
 }
 
 U32 MDIOSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channels )
 {
 	U64 adjusted_largest_sample_requested = AnalyzerHelpers::AdjustSimulationTargetSample( largest_sample_requested, sample_rate, mSimulationSampleRateHz );
 
+	MdioOpCode opcodeValues [3] = { C45_WRITE, C22_READ, C45_READ }; // address 
+	U8 opIndex = 0;
+	
+	MdioDevType devTypeValues [7] = { DEV_RESERVED, DEV_PMD_PMA, DEV_WIS, DEV_PCS, DEV_PHY_XS, DEV_DTE_XS, DEV_OTHER };
+	U8 devTypeIndex = 0;
+
+	U16 regAddrValue = 0;
+	U8 regAddrValue5b = 0;
+	
+    U16 dataValueC22 = 0;
+	U16 dataValueC45 = 0;
+	U8 phyAddressValue = 0;
+	
     while( mMdc->GetCurrentSampleNumber() < adjusted_largest_sample_requested )
     {
-		// TODO: the OpCode, PHY, DevType, and data should be random to cover every combination 
-		CreateMdioC45Transaction( C45_READ,    	// OpCode
-                                  0x0A,        	// PHY Address
-                                  DEV_PCS,     	// DevType
-                                  0x2584,      	// Register Address
-                                  mValue++     	// Data
-                                  );  
+
+		CreateMdioC45Transaction( opcodeValues[opIndex], 			 // OpCode
+                                  phyAddressValue++,				 // PHY Address
+                                  devTypeValues[devTypeIndex++ % 7], // DevType
+                                  regAddrValue++,     				 // Register Address
+                                  dataValueC45++     				 // Data
+                                );  
 		
-		mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 10.0 ) ); //insert 10 bit-periods of idle
+		mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 10.0 ) ); //insert 5 periods of idle
 		
-		CreateMdioC22Transaction( C22_READ,    	// OpCode
-                                  0x0B,        	// PHY Address
-                                  0x05, 		// Register Address
-                                  mValue++     	// Data
-                                  );  
+		CreateMdioC22Transaction( opcodeValues[opIndex++ % 3],  	// OpCode
+                                  phyAddressValue++,        		// PHY Address
+                                  regAddrValue5b++, 				// Register Address
+                                  dataValueC22++     				// Data
+                                );  
 		
-		mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 20.0 ) ); //insert 10 bit-periods of idle
+		mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 20.0 ) ); //insert 10 periods of idle
 		
     }
 
@@ -56,7 +70,7 @@ U32 MDIOSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requ
 
 void MDIOSimulationDataGenerator::CreateMdioC22Transaction( MdioOpCode opCode, U8 phyAddress, U8 regAddress, U16 data )
 {
-    // A Clause 22 transaction consists of ONE frame containing a 5 bit register address, and a 16 bit data
+    // A Clause 22 transaction consists of ONE packet containing a 5 bit register address, and a 16 bit data
     CreateStart(C22_START);
     CreateOpCode(opCode);
     CreatePhyAddress(phyAddress);
@@ -67,10 +81,10 @@ void MDIOSimulationDataGenerator::CreateMdioC22Transaction( MdioOpCode opCode, U
 
 void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U8 phyAddress, MdioDevType devType, U16 regAddress, U16 data )
 {
-    // A Clause 45 transaction consists of TWO frames. 
+    // A Clause 45 transaction consists of TWO packets. 
     // The first frame contains a 16 bit register address, the second has the 16 bit data 
 
-    // First frame
+    // First packet
     CreateStart(C45_START);
     CreateOpCode(C45_ADDRESS);
     CreatePhyAddress(phyAddress);
@@ -78,7 +92,7 @@ void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U
     CreateTurnAround();
     CreateAddressOrData(regAddress);
 
-    // Second frame
+    // Second packet
     CreateStart(C45_START);
     CreateOpCode(opCode);
     CreatePhyAddress(phyAddress);
@@ -185,19 +199,21 @@ void MDIOSimulationDataGenerator::CreateData(U16 data)
         CreateBit( bit_extractor.GetNextBit() );
     }
 
+    CreateBit( BIT_HIGH );  // Release the bus (normally pulled up) 
+
 }
 
-// NOTE: currently it has the same behaviour as CreateData(U16)
 void MDIOSimulationDataGenerator::CreateAddressOrData(U16 data)
 {
     CreateData(data); 
-    CreateBit( BIT_HIGH );  // Release the bus (normally pulled up) 
 }
 
 void MDIOSimulationDataGenerator::CreateBit( BitState bit_state )
 {
-    if( mMdc->GetCurrentBitState() != BIT_LOW )
+    if( mMdc->GetCurrentBitState() != BIT_LOW ) 
+	{
         AnalyzerHelpers::Assert( "CreateBit() expects to be entered with MDC low" );
+	}
 
     mMdio->TransitionIfNeeded( bit_state );
 

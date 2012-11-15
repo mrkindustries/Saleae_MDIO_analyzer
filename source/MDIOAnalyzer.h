@@ -21,23 +21,22 @@ public:
 	virtual const char* GetAnalyzerName() const;
 	virtual bool NeedsRerun();
 	
-protected: // functions
+protected: 
 	void AdvanceToStartFrame();
 	
 	void ProcessStartFrame();
 	void ProcessOpcodeFrame();
 	void ProcessPhyAddrFrame();
 	void ProcessRegAddrDevTypeFrame();
+	void ProcessTAFrame();
 	void ProcessAddrDataFrame();
 	
 	void AdvanceToHighMDIO();
 	
-	bool GetBit( BitState& bit_state, U64& mdc_rising_edge );
-	
+	void GetBit( BitState& bit_state, U64& mdc_rising_edge );
 	MDIOFrameType GetDevType(const U64 & value);
-	void ProcessTAFrame();
 
-protected: //vars
+protected: 
 	std::auto_ptr< MDIOAnalyzerSettings > mSettings;
 	std::auto_ptr< MDIOAnalyzerResults > mResults;
 	
@@ -46,17 +45,13 @@ protected: //vars
 
 	MDIOSimulationDataGenerator mSimulationDataGenerator;
 	bool mSimulationInitilized;
+
 	U8 mPacketInTransaction;
 	U64 mTransactionID;
-	
 	MDIOPacketType currentPacket;
-	
 	std::vector<U64> mMdcArrowLocations;
 
-	//Serial analysis vars:
 	U32 mSampleRateHz;
-	U32 mStartOfStopBitOffset;
-	U32 mEndOfStopBitOffset;
 };
 
 extern "C" ANALYZER_EXPORT const char* __cdecl GetAnalyzerName();

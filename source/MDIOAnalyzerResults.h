@@ -15,7 +15,8 @@ enum MDIOFrameType { MDIO_C22_START = 0, MDIO_C45_START,
                     MDIO_TA, 
 					MDIO_C22_DATA, 
 					MDIO_C45_ADDRDATA,
-					MDIO_UNKNOWN };
+					MDIO_UNKNOWN 
+				   };
 
 class MDIOAnalyzerResults : public AnalyzerResults
 {
@@ -30,13 +31,14 @@ public:
 	virtual void GeneratePacketTabularText( U64 packet_id, DisplayBase display_base );
 	virtual void GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base );
 
-protected: //functions
+protected: 
+	void GenBubbleText(U64 frame_index, DisplayBase display_base, bool tabular); 
 
-	void GenTabularText(U64 frame_index, DisplayBase display_base, bool tabular); 
-
-    void GenStartString(const Frame & frame, const char* clause, bool tabular);
-	void GenOpString(const Frame & frame, const char* opcode_str0, const char* opcode_str1, 
-					 const char* opcode_str2, bool tabular); 
+	// helper functions to generate text for each type of frame
+	void GenStartString(const Frame & frame, const char* clause, bool tabular);
+	void GenOpString(const Frame & frame, 
+					 const char* opcode_str0, const char* opcode_str1, const char* opcode_str2, 
+					 bool tabular); 
     void GenPhyAddrString(const Frame & frame, DisplayBase display_base, bool tabular); 
     void GenC22RegAddrString(const Frame & frame, DisplayBase display_base, bool tabular);
 	void GenC45DevTypeString(const Frame & frame, DisplayBase display_base, const char* devtype, bool tabular);
@@ -46,7 +48,7 @@ protected: //functions
     void GenC45AddrDataString(const Frame & frame, DisplayBase display_base, bool tabular); 
     void GenUnknownString(bool tabular);
 
-protected:  //vars
+protected:  
 	MDIOAnalyzerSettings* mSettings;
 	MDIOAnalyzer* mAnalyzer;
 };

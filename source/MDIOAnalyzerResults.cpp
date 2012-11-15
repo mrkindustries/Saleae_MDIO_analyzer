@@ -120,7 +120,7 @@ void MDIOAnalyzerResults::GenUnknownString(bool)
 	AddResultString("Unknown");
 }
 
-void MDIOAnalyzerResults::GenTabularText(U64 frame_index, DisplayBase display_base, bool tabular) 
+void MDIOAnalyzerResults::GenBubbleText(U64 frame_index, DisplayBase display_base, bool tabular) 
 {
 	ClearResultStrings();
 	Frame frame = GetFrame( frame_index );
@@ -151,7 +151,7 @@ void MDIOAnalyzerResults::GenTabularText(U64 frame_index, DisplayBase display_ba
 
 void MDIOAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& /*channel*/, DisplayBase display_base )
 {
-	GenTabularText(frame_index, display_base, false);
+	GenBubbleText(frame_index, display_base, false);
 }
 
 // export_type_user_id is needed if we have more than one export type
@@ -286,7 +286,7 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 		}
 		else 
 		{
-			file_stream << (int) frame.mType;
+			// error
 		}
 	
 		file_stream << std::endl;
@@ -300,12 +300,11 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 	}
 
 	UpdateExportProgressAndCheckForCancel( num_packets, num_packets );
-	// std::ofstream closes when goes out of scope (RAII)
 }
 
 void MDIOAnalyzerResults::GenerateFrameTabularText( U64 frame_index, DisplayBase display_base )
 {
-	GenTabularText(frame_index, display_base, true);
+	GenBubbleText(frame_index, display_base, true);
 }
 
 void MDIOAnalyzerResults::GeneratePacketTabularText( U64 /*packet_id*/, DisplayBase /*display_base*/ )
