@@ -260,7 +260,18 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 		}
 		
 		++frame_id;
+		if (frame_id > last_frame_id)
+			continue;
 		
+		// TA frame
+		frame = GetFrame( frame_id );
+		
+		if (frame.mType != MDIO_TA) 
+		{
+			// error
+		}
+		
+		++frame_id;
 		if (frame_id > last_frame_id)
 			continue;
 		
@@ -275,7 +286,7 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 		}
 		else 
 		{
-			file_stream << ",";
+			file_stream << (int) frame.mType;
 		}
 	
 		file_stream << std::endl;

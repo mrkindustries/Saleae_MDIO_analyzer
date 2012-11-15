@@ -2,6 +2,8 @@
 #include "MDIOAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
 
+// TODO: fix missing rising arrow in packet end boundary
+
 MDIOAnalyzer::MDIOAnalyzer()
 :	Analyzer(),  
 	mSettings( new MDIOAnalyzerSettings() ),
@@ -22,6 +24,8 @@ void MDIOAnalyzer::WorkerThread()
 	mResults->AddChannelBubblesWillAppearOn( mSettings->mMdioChannel );
 
 	mSampleRateHz = GetSampleRate();
+	mPacketInTransaction = 0;
+	mTransactionID = 0;
 
 	// mMDio and mMdc have the actual data from the channel
 	mMdio = GetAnalyzerChannelData( mSettings->mMdioChannel );
@@ -35,12 +39,15 @@ void MDIOAnalyzer::WorkerThread()
 	{		
 		AdvanceToStartFrame();
 		
+		// process the packet
 		ProcessStartFrame();
 		ProcessOpcodeFrame();
 		ProcessPhyAddrFrame();
 		ProcessRegAddrDevTypeFrame();
 		ProcessTAFrame();
 		ProcessAddrDataFrame();
+		
+		AdvanceToHighMDIO();
 		
 		// show arrows in clock posedge
 		U32 count = mMdcArrowLocations.size();
@@ -52,6 +59,20 @@ void MDIOAnalyzer::WorkerThread()
 		
 		// finally commit the results to the MDIOAnalyzerResults class
 		mResults->CommitResults();
+		
+		// commit the generated frames to a packet
+		U64 packet_id = mResults->CommitPacketAndStartNewPacket();
+		
+		mResults->AddPacketToTransaction(mTransactionID, packet_id);
+		
+		// Check if it is the end of a C22 or C45 transaction 
+		if ( ( currentPacket == MDIO_C22_PACKET ) or 
+			 ( currentPacket == MDIO_C45_PACKET and mPacketInTransaction == 2 ) ) 
+		{
+			mTransactionID++;
+			mPacketInTransaction = 0;
+		}
+
 	}
 		
 	
@@ -97,8 +118,12 @@ void MDIOAnalyzer::ProcessStartFrame()
 	ReportProgress( frame.mEndingSampleInclusive );
 	
 	currentPacket = ( frame.mType == MDIO_C22_START ) ? MDIO_C22_PACKET : MDIO_C45_PACKET;
-	
+	if (currentPacket == MDIO_C45_PACKET) 
+	{
+		mPacketInTransaction++;
+	}
 }
+	
 
 void MDIOAnalyzer::ProcessOpcodeFrame() 
 {
@@ -251,12 +276,24 @@ void MDIOAnalyzer::ProcessAddrDataFrame()
 	
 	// TODO: better position for the "end" marker
 	// Put a marker in the end of the packet
-	mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mMdioChannel );
+	// mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mMdioChannel );
 	
 	mResults->AddFrame( frame );
 	ReportProgress( frame.mEndingSampleInclusive );
 }
 
+void MDIOAnalyzer::AdvanceToHighMDIO() 
+{
+	mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mMdioChannel );
+
+	if( mMdio->GetBitState() != BIT_HIGH )
+	{
+		// go to high state
+		mMdio->AdvanceToNextEdge();
+		mMdc->AdvanceToAbsPosition( mMdio->GetSampleNumber() );
+	}	
+
+}
 
 MDIOFrameType MDIOAnalyzer::GetDevType(const U64 & value)
 {

@@ -30,6 +30,8 @@ protected: // functions
 	void ProcessRegAddrDevTypeFrame();
 	void ProcessAddrDataFrame();
 	
+	void AdvanceToHighMDIO();
+	
 	bool GetBit( BitState& bit_state, U64& mdc_rising_edge );
 	
 	MDIOFrameType GetDevType(const U64 & value);
@@ -44,6 +46,8 @@ protected: //vars
 
 	MDIOSimulationDataGenerator mSimulationDataGenerator;
 	bool mSimulationInitilized;
+	U8 mPacketInTransaction;
+	U64 mTransactionID;
 	
 	MDIOPacketType currentPacket;
 	
