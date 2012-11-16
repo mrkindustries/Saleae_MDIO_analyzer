@@ -348,7 +348,7 @@ U32 MDIOAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_s
 
 U32 MDIOAnalyzer::GetMinimumSampleRateHz()
 {
-	return 2000000; // Minimum sampling rate: 2 Mhz.
+	return 500000; // Minimum sampling rate: 500 Khz.
 }
 
 const char* MDIOAnalyzer::GetAnalyzerName() const
