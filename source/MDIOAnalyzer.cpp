@@ -32,14 +32,17 @@ void MDIOAnalyzer::WorkerThread()
 	mMdio = GetAnalyzerChannelData( mSettings->mMdioChannel );
 	mMdc = GetAnalyzerChannelData( mSettings->mMdcChannel );
 
-	// go to the high state (before the start frame)
-	if( mMdio->GetBitState() == BIT_LOW )
-		mMdio->AdvanceToNextEdge();
-	
 	for( ; ; )
 	{	
+		
+		// normally pulled up
+		AdvanceToHighMDIO();
+		
 		// go to the beggining of a start frame (MDIO HIGH->LOW transition)
 		AdvanceToStartFrame();
+		
+		// Put a marker in the start position
+		mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Start, mSettings->mMdioChannel );
 		
 		// process the packet
 		ProcessStartFrame();
@@ -48,11 +51,11 @@ void MDIOAnalyzer::WorkerThread()
 		ProcessRegAddrDevTypeFrame();
 		ProcessTAFrame();
 		ProcessAddrDataFrame();
+
+		// Put a marker in the end of the packet
+		mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mMdioChannel );
 		
-		// after end of packet the line must go HIGH
-		AdvanceToHighMDIO();
-		
-		// show arrows in clock posedge
+		// add arrows in clock posedge
 		U32 count = mMdcArrowLocations.size();
 		for( U32 i=0; i<count; i++ ) 
 		{
@@ -60,13 +63,14 @@ void MDIOAnalyzer::WorkerThread()
 		}
 		mMdcArrowLocations.clear();
 		
-		// finally commit the results to the MDIOAnalyzerResults class
-		mResults->CommitResults();
-		
 		// commit the generated frames to a packet
 		U64 packet_id = mResults->CommitPacketAndStartNewPacket();
 		
+		// add the current packet to the current transaction
 		mResults->AddPacketToTransaction(mTransactionID, packet_id);
+		
+		// finally commit the results to the MDIOAnalyzerResults class
+		mResults->CommitResults();
 		
 		// Check if it is the end of a C22 or C45 transaction (C45 transaction consists of two frames)
 		if ( ( currentPacket == MDIO_C22_PACKET ) or 
@@ -83,20 +87,14 @@ void MDIOAnalyzer::WorkerThread()
 
 void MDIOAnalyzer::AdvanceToStartFrame() 
 {
-	for( ; ; ) 
+	if ( mMdio->GetBitState() == BIT_LOW ) 
 	{
-		// starts high 
-		mMdio->AdvanceToNextEdge();
-
-		if( mMdio->GetBitState() == BIT_LOW )
-		{
-			mMdc->AdvanceToAbsPosition( mMdio->GetSampleNumber() );
-			break;
-		}	
+		AnalyzerHelpers::Assert( "AdvanceToStartFrame() must be called with MDIO line with HIGH state" );
 	}
-
-	// Put a marker in the start position
-	mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Start, mSettings->mMdioChannel );
+	
+	mMdio->AdvanceToNextEdge(); // high->low transition
+	mMdc->AdvanceToAbsPosition( mMdio->GetSampleNumber() );
+	
 }
 
 void MDIOAnalyzer::ProcessStartFrame() 
@@ -292,16 +290,12 @@ void MDIOAnalyzer::ProcessAddrDataFrame()
 	ReportProgress( frame.mEndingSampleInclusive );
 }
 
+// TODO: better position for the "end" marker
 void MDIOAnalyzer::AdvanceToHighMDIO() 
 {
-	// TODO: better position for the "end" marker
-	// Put a marker in the end of the packet
-	mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mMdioChannel );
-
-	if( mMdio->GetBitState() != BIT_HIGH )
+	if( mMdio->GetBitState() == BIT_LOW )
 	{
-		// go to high state
-		mMdio->AdvanceToNextEdge();
+		mMdio->AdvanceToNextEdge(); // go to high state
 		mMdc->AdvanceToAbsPosition( mMdio->GetSampleNumber() );
 	}	
 
