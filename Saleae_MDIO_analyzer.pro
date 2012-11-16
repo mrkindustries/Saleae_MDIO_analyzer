@@ -11,9 +11,9 @@ INCLUDEPATH += \
           
 DEFINES -= QT_WEBKIT
 
-LIBS += \
-          -L../lib \
-          -lAnalyzer
+#LIBS += \
+#          -L../lib \
+#          -lAnalyzer
           
 DEPENDPATH += ./source
 	
@@ -22,6 +22,8 @@ Release:OBJECTS_DIR = release
 
 Debug:DESTDIR = debug
 Debug:OBJECTS_DIR = debug
+
+QMAKE_CXX = clang++
 	
 QMAKE_CXXFLAGS_DEBUG = -O0 -w -fpic -g
 QMAKE_CXXFLAGS_RELEASE = -O3 -w -fpic  

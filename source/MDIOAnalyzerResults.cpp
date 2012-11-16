@@ -165,7 +165,6 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 
 	file_stream << "Time [s],Packet ID,MDIOClause,OP,PHYADDR,REGADDR/DEVTYPE,ADDR/DATA" << std::endl;
 	
-	U64 num_frames = GetNumFrames();
 	U64 num_packets = GetNumPackets();
 	
 	for( U32 packet_id=0; packet_id < num_packets; ++packet_id )

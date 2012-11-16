@@ -29,10 +29,10 @@ U32 MDIOSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requ
 {
 	U64 adjusted_largest_sample_requested = AnalyzerHelpers::AdjustSimulationTargetSample( largest_sample_requested, sample_rate, mSimulationSampleRateHz );
 
-	MdioOpCode opcodeValues [3] = { C45_WRITE, C22_READ, C45_READ }; // address 
+	MdioOpCode opcodeValues[3] = { C45_WRITE, C22_READ, C45_READ }; // address 
 	U8 opIndex = 0;
 	
-	MdioDevType devTypeValues [7] = { DEV_RESERVED, DEV_PMD_PMA, DEV_WIS, DEV_PCS, DEV_PHY_XS, DEV_DTE_XS, DEV_OTHER };
+	MdioDevType devTypeValues[7] = { DEV_RESERVED, DEV_PMD_PMA, DEV_WIS, DEV_PCS, DEV_PHY_XS, DEV_DTE_XS, DEV_OTHER };
 	U8 devTypeIndex = 0;
 
 	U16 regAddrValue = 0;
@@ -45,7 +45,7 @@ U32 MDIOSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requ
     while( mMdc->GetCurrentSampleNumber() < adjusted_largest_sample_requested )
     {
 
-		CreateMdioC45Transaction( opcodeValues[opIndex], 			 // OpCode
+		CreateMdioC45Transaction( opcodeValues[opIndex % 3], 		 // OpCode
                                   phyAddressValue++,				 // PHY Address
                                   devTypeValues[devTypeIndex++ % 7], // DevType
                                   regAddrValue++,     				 // Register Address
