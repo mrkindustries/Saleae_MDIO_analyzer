@@ -92,6 +92,8 @@ void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U
     CreateTurnAround();
     CreateAddressOrData(regAddress);
 
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 2.0 ) ); //insert 1 periods of idle
+
     // Second packet
     CreateStart(C45_START);
     CreateOpCode(opCode);
@@ -165,7 +167,7 @@ void MDIOSimulationDataGenerator::CreateDevType(MdioDevType devType)
 void MDIOSimulationDataGenerator::CreateTurnAround()
 {
     
-	mMdio->TransitionIfNeeded(BIT_HIGH); // value 1
+    mMdio->TransitionIfNeeded(BIT_HIGH);
 	
 	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 
 	
