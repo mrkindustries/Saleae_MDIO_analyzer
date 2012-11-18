@@ -25,9 +25,12 @@ void MDIOSimulationDataGenerator::Initialize( U32 simulation_sample_rate, MDIOAn
 
 }
 
-U32 MDIOSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channels )
+U32 MDIOSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate, 
+														 SimulationChannelDescriptor** simulation_channels )
 {
-	U64 adjusted_largest_sample_requested = AnalyzerHelpers::AdjustSimulationTargetSample( largest_sample_requested, sample_rate, mSimulationSampleRateHz );
+	U64 adjusted_largest_sample_requested = AnalyzerHelpers::AdjustSimulationTargetSample( largest_sample_requested, 
+																						   sample_rate, 
+																						   mSimulationSampleRateHz );
 
 	MdioOpCode opcodeValues[3] = { C45_WRITE, C22_READ, C45_READ }; // address 
 	U8 opIndex = 0;
@@ -68,7 +71,8 @@ U32 MDIOSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requ
     return mSimulationChannels.GetCount();
 }
 
-void MDIOSimulationDataGenerator::CreateMdioC22Transaction( MdioOpCode opCode, U8 phyAddress, U8 regAddress, U16 data )
+void MDIOSimulationDataGenerator::CreateMdioC22Transaction( MdioOpCode opCode, U8 phyAddress, 
+															U8 regAddress, U16 data )
 {
     // A Clause 22 transaction consists of ONE packet containing a 5 bit register address, and a 16 bit data
     CreateStart(C22_START);
@@ -79,7 +83,8 @@ void MDIOSimulationDataGenerator::CreateMdioC22Transaction( MdioOpCode opCode, U
     CreateData(data);
 }
 
-void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U8 phyAddress, MdioDevType devType, U16 regAddress, U16 data )
+void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U8 phyAddress, 
+															MdioDevType devType, U16 regAddress, U16 data )
 {
     // A Clause 45 transaction consists of TWO packets. 
     // The first frame contains a 16 bit register address, the second has the 16 bit data 
@@ -110,7 +115,7 @@ bool MDIOSimulationDataGenerator::IsReadOperation( MdioOpCode opcode )
 		opcode == C45_READ );
 }
 
-void MDIOSimulationDataGenerator::CreateStart(MdioStart start)
+void MDIOSimulationDataGenerator::CreateStart( MdioStart start )
 {
     if( mMdc->GetCurrentBitState() == BIT_HIGH )
     {
@@ -128,7 +133,7 @@ void MDIOSimulationDataGenerator::CreateStart(MdioStart start)
 
 }
 
-void MDIOSimulationDataGenerator::CreateOpCode(MdioOpCode opCode)
+void MDIOSimulationDataGenerator::CreateOpCode( MdioOpCode opCode )
 {
     BitExtractor bit_extractor( opCode, AnalyzerEnums::MsbFirst, 2 );
 
@@ -138,7 +143,7 @@ void MDIOSimulationDataGenerator::CreateOpCode(MdioOpCode opCode)
     }
 }
 
-void MDIOSimulationDataGenerator::CreatePhyAddress(U8 address)
+void MDIOSimulationDataGenerator::CreatePhyAddress( U8 address )
 {
 	BitExtractor bit_extractor( address, AnalyzerEnums::MsbFirst, 5 );
 
@@ -148,7 +153,7 @@ void MDIOSimulationDataGenerator::CreatePhyAddress(U8 address)
     }
 }
 
-void MDIOSimulationDataGenerator::CreateRegAddress(U8 address)
+void MDIOSimulationDataGenerator::CreateRegAddress( U8 address )
 {
 
 	BitExtractor bit_extractor( address, AnalyzerEnums::MsbFirst, 5 );
@@ -160,7 +165,7 @@ void MDIOSimulationDataGenerator::CreateRegAddress(U8 address)
 
 }
 
-void MDIOSimulationDataGenerator::CreateDevType(MdioDevType devType)
+void MDIOSimulationDataGenerator::CreateDevType( MdioDevType devType )
 {
     BitExtractor bit_extractor( devType, AnalyzerEnums::MsbFirst, 5 );
 
@@ -172,7 +177,7 @@ void MDIOSimulationDataGenerator::CreateDevType(MdioDevType devType)
 
 void MDIOSimulationDataGenerator::CreateTurnAround( bool isReadOperation )
 {
-	if (isReadOperation) 
+	if( isReadOperation ) 
 	{
 		CreateTAForRead();
 	}

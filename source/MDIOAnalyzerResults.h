@@ -42,7 +42,8 @@ protected:
 					 bool tabular); 
     void GenPhyAddrString(const Frame & frame, DisplayBase display_base, bool tabular); 
     void GenC22RegAddrString(const Frame & frame, DisplayBase display_base, bool tabular);
-	void GenC45DevTypeString(const Frame & frame, DisplayBase display_base, const char* devtype, bool tabular);
+	void GenC45DevTypeString(const Frame & frame, DisplayBase display_base, 
+							 const char* devtype, bool tabular);
 	void GenC45DevType(const Frame & frame, DisplayBase display_base, bool tabular); 
     void GenTAString(const Frame & frame, DisplayBase display_base); 
     void GenC22DataString(const Frame & frame, DisplayBase display_base, bool tabular); 

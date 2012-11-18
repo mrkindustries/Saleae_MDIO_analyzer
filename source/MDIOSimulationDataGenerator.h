@@ -15,7 +15,8 @@ public:
 	~MDIOSimulationDataGenerator();
 
 	void Initialize( U32 simulation_sample_rate, MDIOAnalyzerSettings* settings );
-	U32 GenerateSimulationData( U64 newest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channel );
+	U32 GenerateSimulationData( U64 newest_sample_requested, U32 sample_rate, 
+								SimulationChannelDescriptor** simulation_channel );
 
 protected:
 	MDIOAnalyzerSettings* mSettings;
@@ -25,7 +26,8 @@ protected:
     
 	// Helper functions to create MDIO Clause 22 and Clause 45 transactions
 	void CreateMdioC22Transaction( MdioOpCode OpCode, U8 phyAddress, U8 regAddress, U16 data );
-    void CreateMdioC45Transaction( MdioOpCode opCode, U8 phyAddress, MdioDevType devType, U16 regAddress, U16 data );
+    void CreateMdioC45Transaction( MdioOpCode opCode, U8 phyAddress, 
+								   MdioDevType devType, U16 regAddress, U16 data );
     
 	// Helper functions for frames creation
 	void CreateStart( MdioStart start );		 // 2 bits: 01 for Clause 22, 00 for Clause 45
