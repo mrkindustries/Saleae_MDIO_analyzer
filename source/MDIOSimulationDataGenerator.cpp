@@ -75,7 +75,7 @@ void MDIOSimulationDataGenerator::CreateMdioC22Transaction( MdioOpCode opCode, U
     CreateOpCode(opCode);
     CreatePhyAddress(phyAddress);
     CreateRegAddress(regAddress);
-    CreateTurnAround();
+    CreateTurnAround(IsReadOperation(opCode));
     CreateData(data);
 }
 
@@ -89,7 +89,7 @@ void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U
     CreateOpCode(C45_ADDRESS);
     CreatePhyAddress(phyAddress);
     CreateDevType(devType);
-    CreateTurnAround();
+    CreateTurnAround(IsReadOperation(opCode));
     CreateAddressOrData(regAddress);
 
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 2.0 ) ); //insert 1 periods of idle
@@ -99,8 +99,15 @@ void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U
     CreateOpCode(opCode);
     CreatePhyAddress(phyAddress);
     CreateDevType(devType);
-    CreateTurnAround();
+    CreateTurnAround(IsReadOperation(opCode));
     CreateAddressOrData(data);
+}
+
+bool MDIOSimulationDataGenerator::IsReadOperation( MdioOpCode opcode ) 
+{
+	return ( opcode == C22_READ or
+		opcode == C45_READ_AND_ADDR or 
+		opcode == C45_READ );
 }
 
 void MDIOSimulationDataGenerator::CreateStart(MdioStart start)
@@ -163,33 +170,46 @@ void MDIOSimulationDataGenerator::CreateDevType(MdioDevType devType)
     }
 }
 
-// TODO TA can take less time (that's why I didn't use CreateBit)
-void MDIOSimulationDataGenerator::CreateTurnAround()
+void MDIOSimulationDataGenerator::CreateTurnAround( bool isReadOperation )
 {
-    
-    mMdio->TransitionIfNeeded(BIT_HIGH);
-	
-	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 
-	
-	mMdc->Transition(); // MDC posedge
-    
-	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) ); 	
-	
-	mMdc->Transition(); // MDC negedge
-	
-	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 
-	
-	mMdio->Transition(); // value 0
+	if (isReadOperation) 
+	{
+		CreateTAForRead();
+	}
+	else
+	{
+		CreateTAForWrite();
+	}
+}
 
+void MDIOSimulationDataGenerator::CreateTAForRead() 
+{
+	mMdio->TransitionIfNeeded(BIT_HIGH);
 	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 
-	
 	mMdc->Transition(); // MDC posedge
-    
-	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) ); 	
-	
+	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 	
+	mMdio->Transition(); // MDIO line goes down (by the slave)
+	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 	
 	mMdc->Transition(); // MDC negedge
-	
+	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) ); 
+	mMdc->Transition(); // MDC posedge
 	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 
+}
+
+void MDIOSimulationDataGenerator::CreateTAForWrite() 
+{
+	mMdio->TransitionIfNeeded(BIT_HIGH);
+	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 
+	mMdc->Transition(); // MDC posedge
+	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) ); 	
+	mMdc->Transition(); // MDC negedge
+	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 
+	mMdio->Transition(); // value 0
+	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) ); 
+	mMdc->Transition(); // MDC posedge
+	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 1.0 ) ); 	
+	mMdc->Transition(); // MDC negedge
+	mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) );
 }
 
 void MDIOSimulationDataGenerator::CreateData(U16 data)
@@ -212,11 +232,6 @@ void MDIOSimulationDataGenerator::CreateAddressOrData(U16 data)
 
 void MDIOSimulationDataGenerator::CreateBit( BitState bit_state )
 {
-    if( mMdc->GetCurrentBitState() != BIT_LOW ) 
-	{
-        AnalyzerHelpers::Assert( "CreateBit() expects to be entered with MDC low" );
-	}
-
     mMdio->TransitionIfNeeded( bit_state );
 
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) );

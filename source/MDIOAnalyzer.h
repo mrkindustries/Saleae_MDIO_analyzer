@@ -5,7 +5,17 @@
 #include "MDIOAnalyzerResults.h"
 #include "MDIOSimulationDataGenerator.h"
 
-enum MDIOPacketType { MDIO_C22_PACKET, MDIO_C45_PACKET };
+enum MDIOPacketClauseType { MDIO_C22_PACKET, MDIO_C45_PACKET };
+enum MDIOPacketC45Type { MDIO_C45_PACKET_ADDR, MDIO_C45_PACKET_DATA };
+enum MDIOPacketOperation { MDIO_PACKET_READ, MDIO_PACKET_WRITE };
+
+// struct to take actions depending on the type of the current MDIO packet
+struct PacketType 
+{
+	MDIOPacketClauseType clause;
+	MDIOPacketC45Type c45Type;
+	MDIOPacketOperation operation;
+};
 
 class MDIOAnalyzerSettings;
 class ANALYZER_EXPORT MDIOAnalyzer : public Analyzer
@@ -33,7 +43,11 @@ protected:
 	
 	void AdvanceToHighMDIO();
 	
-	void GetBit( BitState& bit_state, U64& mdc_rising_edge );
+	void ProcessTAFrameInReadPacket();
+	void ProcessTAFrameInWritePacket();
+
+	void AddArrowMarkers();
+	void GetBit( BitState& bit_state, std::vector<U64> & arrows );
 	MDIOFrameType GetDevType(const U64 & value);
 
 protected: 
@@ -48,8 +62,11 @@ protected:
 
 	U8 mPacketInTransaction;
 	U64 mTransactionID;
-	MDIOPacketType currentPacket;
-	std::vector<U64> mMdcArrowLocations;
+	
+	PacketType currentPacket;
+	
+	std::vector<U64> mMdcPosedgeArrows;
+	std::vector<U64> mMdcNegedgeArrows;
 
 	U32 mSampleRateHz;
 };

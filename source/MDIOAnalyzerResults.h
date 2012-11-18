@@ -14,7 +14,8 @@ enum MDIOFrameType { MDIO_C22_START = 0, MDIO_C45_START,
 					MDIO_C45_DEVTYPE_PCS, MDIO_C45_DEVTYPE_PHY_XS, MDIO_C45_DEVTYPE_DTE_XS, MDIO_C45_DEVTYPE_OTHER,
                     MDIO_TA, 
 					MDIO_C22_DATA, 
-					MDIO_C45_ADDRDATA,
+					MDIO_C45_ADDR,
+					MDIO_C45_DATA,
 					MDIO_UNKNOWN 
 				   };
 
@@ -45,8 +46,10 @@ protected:
 	void GenC45DevType(const Frame & frame, DisplayBase display_base, bool tabular); 
     void GenTAString(const Frame & frame, DisplayBase display_base); 
     void GenC22DataString(const Frame & frame, DisplayBase display_base, bool tabular); 
-    void GenC45AddrDataString(const Frame & frame, DisplayBase display_base, bool tabular); 
-    void GenUnknownString(bool tabular);
+    void GenC45AddrDataString(const Frame & frame, DisplayBase display_base, 
+							  const char* str0, const char* str1, const char* str2,
+							  bool tabular);
+	void GenUnknownString(bool tabular);
 
 protected:  
 	MDIOAnalyzerSettings* mSettings;

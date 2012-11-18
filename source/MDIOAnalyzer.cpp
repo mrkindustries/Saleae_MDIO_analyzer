@@ -2,8 +2,6 @@
 #include "MDIOAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
 
-// TODO: fix missing rising arrow in packet end boundary
-
 MDIOAnalyzer::MDIOAnalyzer()
 :	Analyzer(),  
 	mSettings( new MDIOAnalyzerSettings() ),
@@ -17,7 +15,6 @@ MDIOAnalyzer::~MDIOAnalyzer()
 	KillThread();
 }
 
-// TODO use CancelPacketAndStartNewPacket() if error
 void MDIOAnalyzer::WorkerThread()
 {
 	mResults.reset( new MDIOAnalyzerResults( this, mSettings.get() ) );
@@ -55,26 +52,20 @@ void MDIOAnalyzer::WorkerThread()
 		// Put a marker in the end of the packet
 		mResults->AddMarker( mMdio->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mMdioChannel );
 		
-		// add arrows in clock posedge
-		U32 count = mMdcArrowLocations.size();
-		for( U32 i=0; i<count; i++ ) 
-		{
-			mResults->AddMarker( mMdcArrowLocations[i], AnalyzerResults::UpArrow, mSettings->mMdcChannel );
-		}
-		mMdcArrowLocations.clear();
+		AddArrowMarkers();
 		
 		// commit the generated frames to a packet
 		U64 packet_id = mResults->CommitPacketAndStartNewPacket();
 		
 		// add the current packet to the current transaction
-		mResults->AddPacketToTransaction(mTransactionID, packet_id);
+		mResults->AddPacketToTransaction( mTransactionID, packet_id );
 		
 		// finally commit the results to the MDIOAnalyzerResults class
 		mResults->CommitResults();
 		
 		// Check if it is the end of a C22 or C45 transaction (C45 transaction consists of two frames)
-		if ( ( currentPacket == MDIO_C22_PACKET ) or 
-			 ( currentPacket == MDIO_C45_PACKET and mPacketInTransaction == 2 ) ) 
+		if ( ( currentPacket.clause == MDIO_C22_PACKET ) or 
+			 ( currentPacket.clause == MDIO_C45_PACKET and mPacketInTransaction == 2 ) ) 
 		{
 			mTransactionID++;
 			mPacketInTransaction = 0;
@@ -83,6 +74,23 @@ void MDIOAnalyzer::WorkerThread()
 	}
 		
 	
+}
+
+void MDIOAnalyzer::AddArrowMarkers() 
+{
+	// add arrows in clock posedges
+	for( U32 i=0; i < mMdcPosedgeArrows.size(); i++ ) 
+	{
+		mResults->AddMarker( mMdcPosedgeArrows[i], AnalyzerResults::UpArrow, mSettings->mMdcChannel );
+	}
+	mMdcPosedgeArrows.clear();
+
+	// add arrows in clock negedges
+	for( U32 i=0; i < mMdcNegedgeArrows.size(); i++ ) 
+	{
+		mResults->AddMarker( mMdcNegedgeArrows[i], AnalyzerResults::DownArrow, mSettings->mMdcChannel );
+	}
+	mMdcNegedgeArrows.clear();
 }
 
 void MDIOAnalyzer::AdvanceToStartFrame() 
@@ -103,10 +111,9 @@ void MDIOAnalyzer::ProcessStartFrame()
 	U64 starting_sample = mMdio->GetSampleNumber();
 
 	// get the value of the two bits of the start frame
-	U64 mdc_rising_edge;
 	BitState bit0, bit1;
-	GetBit(bit0, mdc_rising_edge); // sample first bit (TODO check if first bit is 0)
-	GetBit(bit1, mdc_rising_edge); // sample second bit
+	GetBit( bit0, mMdcPosedgeArrows ); // sample first bit 
+	GetBit( bit1, mMdcPosedgeArrows ); // sample second bit
 	
 	// create and set the start frame
 	Frame frame;
@@ -118,8 +125,8 @@ void MDIOAnalyzer::ProcessStartFrame()
 	mResults->AddFrame( frame );
 	ReportProgress( frame.mEndingSampleInclusive );
 	
-	currentPacket = ( frame.mType == MDIO_C22_START ) ? MDIO_C22_PACKET : MDIO_C45_PACKET;
-	if (currentPacket == MDIO_C45_PACKET) 
+	currentPacket.clause = ( frame.mType == MDIO_C22_START ) ? MDIO_C22_PACKET : MDIO_C45_PACKET;
+	if (currentPacket.clause == MDIO_C45_PACKET) 
 	{
 		mPacketInTransaction++;
 	}
@@ -132,11 +139,9 @@ void MDIOAnalyzer::ProcessOpcodeFrame()
 	U64 starting_sample = mMdio->GetSampleNumber()+1;
 
 	// get the value of the two bits of the start frame
-	U64 mdc_rising_edge;
 	BitState bit0, bit1;
-	GetBit(bit0, mdc_rising_edge); // sample first bit (TODO check if first bit is 0)
-	// U64 starting_sample = mdc_rising_edge; // or set the mStartingSampleInclusive here... 
-	GetBit(bit1, mdc_rising_edge); // sample second bit
+	GetBit( bit0, mMdcPosedgeArrows ); // sample first bit 
+	GetBit( bit1, mMdcPosedgeArrows ); // sample second bit
 	
 	// reconstruct the opcode 
 	DataBuilder opcode;
@@ -148,16 +153,56 @@ void MDIOAnalyzer::ProcessOpcodeFrame()
 	// create and set the opcode frame
 	Frame frame;
 	
-	switch( value ) 
+	if ( currentPacket.clause == MDIO_C22_PACKET ) 
 	{
-		case C45_ADDRESS: 					frame.mType = ( currentPacket == MDIO_C22_PACKET ) 
-														  ? MDIO_UNKNOWN : MDIO_C45_OP_ADDR; break;	// Clause 22 opcode cannot be C45_ADDRESS (00)
-		case C45_WRITE | C22_WRITE: 		frame.mType = MDIO_OP_W; break;
-		case C22_READ | C45_READ_AND_ADDR:	frame.mType = ( currentPacket == MDIO_C22_PACKET ) 
-														  ? MDIO_OP_R : MDIO_C45_OP_READ_INC_ADDR; break;
-		case C45_READ:						frame.mType = ( currentPacket == MDIO_C22_PACKET ) 
-														  ? MDIO_UNKNOWN : MDIO_OP_R; break;	// Clause 22 opcode cannot be C45_READ (11)
-		default: 							frame.mType = MDIO_UNKNOWN;
+		switch( value ) 
+		{
+		case C45_ADDRESS: 					
+			frame.mType = MDIO_UNKNOWN; // Clause 22 opcode cannot be C45_ADDRESS (00)
+			currentPacket.operation = MDIO_PACKET_WRITE;
+			break;	
+		case C22_WRITE: 		
+			frame.mType = MDIO_OP_W; 
+			currentPacket.operation = MDIO_PACKET_WRITE;
+			break;
+		case C22_READ:	
+			frame.mType = MDIO_OP_R; 
+			currentPacket.operation = MDIO_PACKET_READ;
+			break;
+		case C45_READ:						
+			frame.mType = MDIO_UNKNOWN;  // Clause 22 opcode cannot be C45_READ (11)
+			currentPacket.operation = MDIO_PACKET_READ;
+			break;	
+		default: 							
+			frame.mType = MDIO_UNKNOWN;
+	}
+	}
+	else // currentPacket.clause == MDIO_C45_PACKET
+	{
+		currentPacket.c45Type = MDIO_C45_PACKET_DATA;
+		currentPacket.operation = MDIO_PACKET_WRITE;
+		switch( value ) 
+		{
+		case C45_ADDRESS: 					
+			frame.mType = MDIO_C45_OP_ADDR;
+			currentPacket.c45Type = MDIO_C45_PACKET_ADDR;
+			currentPacket.operation = MDIO_PACKET_WRITE;
+			break;	
+		case C45_WRITE: 		
+			frame.mType = MDIO_OP_W;
+			currentPacket.operation = MDIO_PACKET_WRITE;
+			break;
+		case C45_READ_AND_ADDR:	
+			frame.mType = MDIO_C45_OP_READ_INC_ADDR; 
+			currentPacket.operation = MDIO_PACKET_READ;
+			break;
+		case C45_READ:						
+			frame.mType = MDIO_OP_R; 
+			currentPacket.operation = MDIO_PACKET_READ;
+			break;	
+		default: 							
+			frame.mType = MDIO_UNKNOWN;
+		}
 	}
 	
 	if (frame.mType == MDIO_UNKNOWN) 
@@ -185,11 +230,10 @@ void MDIOAnalyzer::ProcessPhyAddrFrame()
 	DataBuilder opcode;
 	U64 value;
 	opcode.Reset( &value, AnalyzerEnums::MsbFirst, 5 );
-	U64 mdc_rising_edge;
 	for(U32 i=0; i < 5; ++i) 
 	{
 		BitState bit;
-		GetBit(bit, mdc_rising_edge);
+		GetBit( bit, mMdcPosedgeArrows );
 		opcode.AddBit(bit);
 	}
 	
@@ -214,17 +258,16 @@ void MDIOAnalyzer::ProcessRegAddrDevTypeFrame()
 	DataBuilder opcode;
 	U64 value;
 	opcode.Reset( &value, AnalyzerEnums::MsbFirst, 5 );
-	U64 mdc_rising_edge;
 	for(U32 i=0; i < 5; ++i) 
 	{
 		BitState bit;
-		GetBit(bit, mdc_rising_edge);
+		GetBit( bit, mMdcPosedgeArrows );
 		opcode.AddBit(bit);
 	}
 	
 	// create and set the phyaddr frame
 	Frame frame;
-	if (currentPacket == MDIO_C22_PACKET) 
+	if (currentPacket.clause == MDIO_C22_PACKET) 
 	{
 		frame.mType = MDIO_C22_REGADDR; 
 	}
@@ -243,25 +286,75 @@ void MDIOAnalyzer::ProcessRegAddrDevTypeFrame()
 
 void MDIOAnalyzer::ProcessTAFrame()
 {
+	if ( currentPacket.operation == MDIO_PACKET_READ ) 
+	{
+		ProcessTAFrameInReadPacket();
+	}
+	else // currentPacket.operation == MDIO_PACKET_WRITE
+	{
+		ProcessTAFrameInWritePacket();
+	}
+}
+
+void MDIOAnalyzer::ProcessTAFrameInWritePacket() 
+{
 	// starting sample of the TA frame
 	U64 starting_sample = mMdio->GetSampleNumber()+1;
 
 	// get the value of the two bits of the start frame
-	U64 mdc_rising_edge;
 	BitState bit0, bit1;
-	// TODO: check TA bits?
-	GetBit(bit0, mdc_rising_edge); 
-	GetBit(bit1, mdc_rising_edge); 
+	GetBit( bit0, mMdcPosedgeArrows); 
+	GetBit( bit1, mMdcPosedgeArrows ); 
 	
 	Frame frame;
 	frame.mType = MDIO_TA;
-	frame.mFlags = 0;
+	// We display as an error if the TA bits are not "10"
+	frame.mFlags = ( bit0 == BIT_HIGH and bit1 == BIT_LOW ) ? 0 : DISPLAY_AS_ERROR_FLAG;
+	frame.mStartingSampleInclusive = starting_sample;
+	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
+	
+	mResults->AddFrame( frame );
+	ReportProgress( frame.mEndingSampleInclusive );
+}
+
+void MDIOAnalyzer::ProcessTAFrameInReadPacket() 
+{
+	// starting sample of the TA frame
+	U64 starting_sample = mMdio->GetSampleNumber()+1;
+
+	mMdc->AdvanceToNextEdge(); //posedge
+	
+	mMdc->AdvanceToNextEdge(); // negedge 
+	mMdio->AdvanceToAbsPosition( mMdc->GetSampleNumber() );  // move to the mMdc nededge
+	// TODO check if put this arrow when sampling the low bit of TA in read
+	mMdcNegedgeArrows.push_back( mMdc->GetSampleNumber() );
+	
+	BitState bit_state = mMdio->GetBitState(); 				 // sample the mMdio channel
+	
+	U8 errorTA;
+	if ( bit_state == BIT_LOW ) // check if the slave didn't take the bus
+	{
+		errorTA = 0; // OK
+	}
+	else 
+	{
+		errorTA = DISPLAY_AS_ERROR_FLAG;
+	}
+	
+	mMdc->AdvanceToNextEdge(); // posedge
+	
+	mMdio->AdvanceToAbsPosition( mMdc->GetSampleNumber() ); // advance mMdio 
+
+	Frame frame;
+	frame.mType = MDIO_TA;
+	frame.mFlags = errorTA;
 	frame.mStartingSampleInclusive = starting_sample;
 	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
 	
 	mResults->AddFrame( frame );
 	ReportProgress( frame.mEndingSampleInclusive );
 	
+	// the data frame will be sampled in the negedge of the MDC clock
 }
 
 void MDIOAnalyzer::ProcessAddrDataFrame() 
@@ -271,16 +364,24 @@ void MDIOAnalyzer::ProcessAddrDataFrame()
 	DataBuilder opcode;
 	U64 value;
 	opcode.Reset( &value, AnalyzerEnums::MsbFirst, 16 );
-	U64 mdc_rising_edge;
+	std::vector<U64> & arrows = ( currentPacket.operation == MDIO_PACKET_READ ) 
+								? mMdcNegedgeArrows : mMdcPosedgeArrows;
 	for(U32 i=0; i < 16; ++i) 
 	{
 		BitState bit;
-		GetBit(bit, mdc_rising_edge);
+		GetBit( bit, arrows );
 		opcode.AddBit(bit);
 	}
 	
 	Frame frame;
-	frame.mType = (currentPacket == MDIO_C22_PACKET) ? MDIO_C22_DATA : MDIO_C45_ADDRDATA;	
+	if ( currentPacket.clause == MDIO_C22_PACKET ) 
+	{
+		frame.mType = MDIO_C22_DATA;
+	}
+	else // currentPacket.clause == MDIO_C45_PACKET
+	{
+		frame.mType =  ( currentPacket.c45Type ==  MDIO_C45_PACKET_ADDR ) ? MDIO_C45_ADDR : MDIO_C45_DATA;
+	}
 	frame.mData1 = value;
 	frame.mFlags = 0;
 	frame.mStartingSampleInclusive = starting_sample;
@@ -290,7 +391,6 @@ void MDIOAnalyzer::ProcessAddrDataFrame()
 	ReportProgress( frame.mEndingSampleInclusive );
 }
 
-// TODO: better position for the "end" marker
 void MDIOAnalyzer::AdvanceToHighMDIO() 
 {
 	if( mMdio->GetBitState() == BIT_LOW )
@@ -314,20 +414,17 @@ MDIOFrameType MDIOAnalyzer::GetDevType(const U64 & value)
 	}
 }
 
-void MDIOAnalyzer::GetBit( BitState& bit_state, U64& mdc_rising_edge )
+void MDIOAnalyzer::GetBit( BitState& bit_state, std::vector<U64> & arrows)
 {
-	// mMdc must be low coming into this function
-	mMdc->AdvanceToNextEdge(); //posedge
-	mdc_rising_edge = mMdc->GetSampleNumber();
-	mMdcArrowLocations.push_back( mdc_rising_edge );
+	mMdc->AdvanceToNextEdge(); // in write operation its a posedge, in read operation its a negedge
+	U64 edge  = mMdc->GetSampleNumber();
+	arrows.push_back( edge );
 	
-	mMdio->AdvanceToAbsPosition( mdc_rising_edge );  //data read on SCL posedge
-
+	mMdio->AdvanceToAbsPosition( edge );  // move mMdio to sample
 	bit_state = mMdio->GetBitState(); // sample the mMdio channel
 	
-	mMdc->AdvanceToNextEdge(); // negedge 
+	mMdc->AdvanceToNextEdge(); // in write write operation its a nededge, in read operation its a posedge
 	mMdio->AdvanceToAbsPosition( mMdc->GetSampleNumber() ); // advance mMdio 
-	
 }
 
 bool MDIOAnalyzer::NeedsRerun()

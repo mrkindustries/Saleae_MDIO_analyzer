@@ -7,7 +7,6 @@
 #include <sstream>
 
 // TODO: check length of generated strings in the bubbles
-// TODO: instead of MDIO_C45_ADDRDATA -> MDIO_C45_DATA and MDIO_C45_ADDR types
 
 MDIOAnalyzerResults::MDIOAnalyzerResults( MDIOAnalyzer* analyzer, MDIOAnalyzerSettings* settings )
 :	AnalyzerResults(),
@@ -24,6 +23,7 @@ void MDIOAnalyzerResults::GenStartString(const Frame & frame, const char* clause
 {
 	if (!tabular) 
 	{  
+		AddResultString( "ST" );
 		AddResultString( "S C", clause );
 	}
 	AddResultString( "START C", clause );
@@ -35,6 +35,7 @@ void MDIOAnalyzerResults::GenOpString(const Frame & frame,
 {
 	if (!tabular) 
 	{
+		AddResultString( "OP" );
 		AddResultString( "OP[", opcode_str0, "]" );
 		AddResultString( "OP [", opcode_str1, "]" );
 	}
@@ -102,17 +103,20 @@ void MDIOAnalyzerResults::GenC22DataString(const Frame & frame, DisplayBase disp
 	AddResultString( "DATA [", number_str, "]" );
 }
 
-void MDIOAnalyzerResults::GenC45AddrDataString(const Frame & frame, DisplayBase display_base, bool tabular) 
+void MDIOAnalyzerResults::GenC45AddrDataString(const Frame & frame, DisplayBase display_base, 
+											   const char* str0, const char* str1, const char* str2,
+											   bool tabular) 
 {
 	char number_str[128];
 	AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 16, number_str, 128 );
 	
 	if (!tabular) 
 	{
-		AddResultString( "A/D" );
-		AddResultString( "A/D[", number_str, "]" );
+		AddResultString( str0 );
+		AddResultString( str1, "[", number_str, "]" );
+		AddResultString( str2, "[", number_str, "]" );
 	}
-	AddResultString( "Address/Data [", number_str, "]" );
+	AddResultString( str2, " [", number_str, "]" );
 }
 
 void MDIOAnalyzerResults::GenUnknownString(bool) 
@@ -144,7 +148,8 @@ void MDIOAnalyzerResults::GenBubbleText(U64 frame_index, DisplayBase display_bas
 		case MDIO_C45_DEVTYPE_OTHER: 	GenC45DevTypeString(frame, display_base, "Other", tabular); break;
 		case MDIO_TA: 					GenTAString(frame, display_base); break;
 		case MDIO_C22_DATA: 			GenC22DataString(frame, display_base, tabular); break;
-		case MDIO_C45_ADDRDATA: 		GenC45AddrDataString(frame, display_base, tabular); break;
+		case MDIO_C45_ADDR: 			GenC45AddrDataString(frame, display_base, "A", "Addr", "Address", tabular); break;
+		case MDIO_C45_DATA: 			GenC45AddrDataString(frame, display_base, "D", "Data", "Data", tabular); break;
 		case MDIO_UNKNOWN:				GenUnknownString(tabular); break;
     }
 }
@@ -277,7 +282,7 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 		// MDIO_C22_DATA or MDIO_C45_ADDRDATA frame
 		frame = GetFrame( frame_id );
 		
-		if (frame.mType == MDIO_C22_DATA or frame.mType == MDIO_C45_ADDRDATA) 
+		if (frame.mType == MDIO_C22_DATA or frame.mType == MDIO_C45_ADDR or frame.mType == MDIO_C45_DATA) 
 		{
 			char number_str[128];
 			AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 16, number_str, 128 );
