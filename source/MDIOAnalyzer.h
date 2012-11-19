@@ -53,7 +53,7 @@ protected:
 protected: 
 	std::auto_ptr< MDIOAnalyzerSettings > mSettings;
 	std::auto_ptr< MDIOAnalyzerResults > mResults;
-	
+
 	AnalyzerChannelData* mMdio;
 	AnalyzerChannelData* mMdc;
 
@@ -64,7 +64,7 @@ protected:
 	U64 mTransactionID;
 
 	PacketType mCurrentPacket;
-	
+
 	std::vector<U64> mMdcPosedgeArrows;
 	std::vector<U64> mMdcNegedgeArrows;
 

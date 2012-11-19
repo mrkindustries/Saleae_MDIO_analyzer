@@ -38,7 +38,6 @@ void MDIOAnalyzerResults::GenOpString(const Frame & frame,
 		AddResultString( "OP[", opcode_str1, "]" );
 	}
 	AddResultString( "OPCODE [", opcode_str2, "]" );
-
 }
 
 void MDIOAnalyzerResults::GenPhyAddrString(const Frame & frame, DisplayBase display_base, bool tabular) 
@@ -164,29 +163,28 @@ void MDIOAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& /*channe
 // export_type_user_id is needed if we have more than one export type
 void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase display_base, U32 /*export_type_user_id*/ )
 {
-	
 	std::ofstream file_stream( file, std::ios::out );
 
 	U64 trigger_sample = mAnalyzer->GetTriggerSample();
 	U32 sample_rate = mAnalyzer->GetSampleRate();
 
 	file_stream << "Time [s],Packet ID,MDIOClause,OP,PHYADDR,REGADDR/DEVTYPE,ADDR/DATA" << std::endl;
-	
+
 	U64 num_packets = GetNumPackets();
-	
+
 	for( U32 packet_id=0; packet_id < num_packets; ++packet_id )
 	{
-		
+
 		// get the frames contained in packet with index packet_id
 		U64 first_frame_id;
 		U64 last_frame_id;
 		GetFramesContainedInPacket( packet_id, &first_frame_id, &last_frame_id );
-		
+	
 		U64 frame_id = first_frame_id;
-		
+
 		// get MDIO_START frame to get the MDIOClause column value
 		Frame frame = GetFrame( frame_id );
-		
+
 		char time_str[128];
 		AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, time_str, 128 );
 
@@ -212,10 +210,10 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 		{
 			continue;
 		}
-		
+
 		// OP frame
 		frame = GetFrame( frame_id );
-		
+
 		switch( frame.mType ) 
 		{
 			case MDIO_OP_W: 				file_stream << "Write,"; break;
@@ -226,20 +224,20 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 		}
 
 		++frame_id;
-		
+
 		if( frame_id > last_frame_id ) 
 		{
 			continue;
 		}
-		
+
 		// PHYADDR frame
 		frame = GetFrame( frame_id );
-		
+
 		if( frame.mType != MDIO_PHYADDR ) 
 		{
 			file_stream << ",";
 		}
-		
+
 		char number_str[128];
 		AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 5, number_str, 128 );
 		
@@ -251,7 +249,7 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 		{
 			continue;
 		}
-		
+
 		// REGADR or DEVTYPE frame
 		frame = GetFrame( frame_id );
 

@@ -19,13 +19,13 @@ public:
 	void UpdateInterfacesFromSettings();
 	virtual void LoadSettings( const char* settings );
 	virtual const char* SaveSettings();
-	
-    Channel mMdioChannel;
-    Channel mMdcChannel;
+
+	Channel mMdioChannel;
+	Channel mMdcChannel;
 
 protected:
-    std::auto_ptr< AnalyzerSettingInterfaceChannel >	mMdioChannelInterface;
-    std::auto_ptr< AnalyzerSettingInterfaceChannel >	mMdcChannelInterface;
+	std::auto_ptr< AnalyzerSettingInterfaceChannel >	mMdioChannelInterface;
+	std::auto_ptr< AnalyzerSettingInterfaceChannel >	mMdcChannelInterface;
 };
 
 #endif //MDIO_ANALYZER_SETTINGS
