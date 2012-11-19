@@ -5,7 +5,7 @@
 MDIOAnalyzer::MDIOAnalyzer()
 :	Analyzer(),  
 	mSettings( new MDIOAnalyzerSettings() ),
-	mSimulationInitilized( false )
+	mSimulationInitialized( false )
 {
 	SetAnalyzerSettings( mSettings.get() );
 }
@@ -63,8 +63,8 @@ void MDIOAnalyzer::WorkerThread()
 		mResults->CommitResults();
 		
 		// Check if it is the end of a C22 or C45 transaction (C45 transaction consists of two frames)
-		if( ( currentPacket.clause == MDIO_C22_PACKET ) or 
-			( currentPacket.clause == MDIO_C45_PACKET and mPacketInTransaction == 2 ) ) 
+		if( ( mCurrentPacket.clause == MDIO_C22_PACKET ) or 
+			( mCurrentPacket.clause == MDIO_C45_PACKET and mPacketInTransaction == 2 ) ) 
 		{
 			mTransactionID++;
 			mPacketInTransaction = 0;
@@ -124,8 +124,8 @@ void MDIOAnalyzer::ProcessStartFrame()
 	mResults->AddFrame( frame );
 	ReportProgress( frame.mEndingSampleInclusive );
 	
-	currentPacket.clause = ( frame.mType == MDIO_C22_START ) ? MDIO_C22_PACKET : MDIO_C45_PACKET;
-	if( currentPacket.clause == MDIO_C45_PACKET ) 
+	mCurrentPacket.clause = ( frame.mType == MDIO_C22_START ) ? MDIO_C22_PACKET : MDIO_C45_PACKET;
+	if( mCurrentPacket.clause == MDIO_C45_PACKET ) 
 	{
 		mPacketInTransaction++;
 	}
@@ -152,53 +152,53 @@ void MDIOAnalyzer::ProcessOpcodeFrame()
 	// create and set the opcode frame
 	Frame frame;
 	
-	if( currentPacket.clause == MDIO_C22_PACKET ) 
+	if( mCurrentPacket.clause == MDIO_C22_PACKET ) 
 	{
 		switch( value ) 
 		{
 		case C45_ADDRESS: 					
 			frame.mType = MDIO_UNKNOWN; // Clause 22 opcode cannot be C45_ADDRESS (00)
-			currentPacket.operation = MDIO_PACKET_WRITE;
+			mCurrentPacket.operation = MDIO_PACKET_WRITE;
 			break;	
 		case C22_WRITE: 		
 			frame.mType = MDIO_OP_W; 
-			currentPacket.operation = MDIO_PACKET_WRITE;
+			mCurrentPacket.operation = MDIO_PACKET_WRITE;
 			break;
 		case C22_READ:	
 			frame.mType = MDIO_OP_R; 
-			currentPacket.operation = MDIO_PACKET_READ;
+			mCurrentPacket.operation = MDIO_PACKET_READ;
 			break;
 		case C45_READ:						
 			frame.mType = MDIO_UNKNOWN;  // Clause 22 opcode cannot be C45_READ (11)
-			currentPacket.operation = MDIO_PACKET_READ;
+			mCurrentPacket.operation = MDIO_PACKET_READ;
 			break;	
 		default: 							
 			frame.mType = MDIO_UNKNOWN;
 		}
 	}
-	else // currentPacket.clause == MDIO_C45_PACKET
+	else // mCurrentPacket.clause == MDIO_C45_PACKET
 	{
-		currentPacket.c45Type = MDIO_C45_PACKET_DATA;
-		currentPacket.operation = MDIO_PACKET_WRITE;
+		mCurrentPacket.c45Type = MDIO_C45_PACKET_DATA;
+		mCurrentPacket.operation = MDIO_PACKET_WRITE;
 		
 		switch( value ) 
 		{
 		case C45_ADDRESS: 					
 			frame.mType = MDIO_C45_OP_ADDR;
-			currentPacket.c45Type = MDIO_C45_PACKET_ADDR;
-			currentPacket.operation = MDIO_PACKET_WRITE;
+			mCurrentPacket.c45Type = MDIO_C45_PACKET_ADDR;
+			mCurrentPacket.operation = MDIO_PACKET_WRITE;
 			break;	
 		case C45_WRITE: 		
 			frame.mType = MDIO_OP_W;
-			currentPacket.operation = MDIO_PACKET_WRITE;
+			mCurrentPacket.operation = MDIO_PACKET_WRITE;
 			break;
 		case C45_READ_AND_ADDR:	
 			frame.mType = MDIO_C45_OP_READ_INC_ADDR; 
-			currentPacket.operation = MDIO_PACKET_READ;
+			mCurrentPacket.operation = MDIO_PACKET_READ;
 			break;
 		case C45_READ:						
 			frame.mType = MDIO_OP_R; 
-			currentPacket.operation = MDIO_PACKET_READ;
+			mCurrentPacket.operation = MDIO_PACKET_READ;
 			break;	
 		default: 							
 			frame.mType = MDIO_UNKNOWN;
@@ -267,7 +267,7 @@ void MDIOAnalyzer::ProcessRegAddrDevTypeFrame()
 	
 	// create and set the phyaddr frame
 	Frame frame;
-	if( currentPacket.clause == MDIO_C22_PACKET ) 
+	if( mCurrentPacket.clause == MDIO_C22_PACKET ) 
 	{
 		frame.mType = MDIO_C22_REGADDR; 
 	}
@@ -286,11 +286,11 @@ void MDIOAnalyzer::ProcessRegAddrDevTypeFrame()
 
 void MDIOAnalyzer::ProcessTAFrame()
 {
-	if( currentPacket.operation == MDIO_PACKET_READ ) 
+	if( mCurrentPacket.operation == MDIO_PACKET_READ ) 
 	{
 		ProcessTAFrameInReadPacket();
 	}
-	else // currentPacket.operation == MDIO_PACKET_WRITE
+	else // mCurrentPacket.operation == MDIO_PACKET_WRITE
 	{
 		ProcessTAFrameInWritePacket();
 	}
@@ -362,7 +362,7 @@ void MDIOAnalyzer::ProcessAddrDataFrame()
 	DataBuilder opcode;
 	U64 value;
 	opcode.Reset( &value, AnalyzerEnums::MsbFirst, 16 );
-	std::vector<U64> & arrows = ( currentPacket.operation == MDIO_PACKET_READ ) 
+	std::vector<U64> & arrows = ( mCurrentPacket.operation == MDIO_PACKET_READ ) 
 								? mMdcNegedgeArrows : mMdcPosedgeArrows;
 	for(U32 i=0; i < 16; ++i) 
 	{
@@ -372,13 +372,13 @@ void MDIOAnalyzer::ProcessAddrDataFrame()
 	}
 	
 	Frame frame;
-	if( currentPacket.clause == MDIO_C22_PACKET ) 
+	if( mCurrentPacket.clause == MDIO_C22_PACKET ) 
 	{
 		frame.mType = MDIO_C22_DATA;
 	}
-	else // currentPacket.clause == MDIO_C45_PACKET
+	else // mCurrentPacket.clause == MDIO_C45_PACKET
 	{
-		frame.mType =  ( currentPacket.c45Type ==  MDIO_C45_PACKET_ADDR ) ? MDIO_C45_ADDR : MDIO_C45_DATA;
+		frame.mType =  ( mCurrentPacket.c45Type ==  MDIO_C45_PACKET_ADDR ) ? MDIO_C45_ADDR : MDIO_C45_DATA;
 	}
 	frame.mData1 = value;
 	frame.mFlags = 0;
@@ -432,10 +432,10 @@ bool MDIOAnalyzer::NeedsRerun()
 
 U32 MDIOAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_sample_rate, SimulationChannelDescriptor** simulation_channels )
 {
-	if( mSimulationInitilized == false )
+	if( mSimulationInitialized == false )
 	{
 		mSimulationDataGenerator.Initialize( GetSimulationSampleRate(), mSettings.get() );
-		mSimulationInitilized = true;
+		mSimulationInitialized = true;
 	}
 
 	return mSimulationDataGenerator.GenerateSimulationData( minimum_sample_index, device_sample_rate, simulation_channels );

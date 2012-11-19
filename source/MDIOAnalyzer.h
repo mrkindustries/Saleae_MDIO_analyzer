@@ -58,12 +58,12 @@ protected:
 	AnalyzerChannelData* mMdc;
 
 	MDIOSimulationDataGenerator mSimulationDataGenerator;
-	bool mSimulationInitilized;
+	bool mSimulationInitialized;
 
 	U8 mPacketInTransaction;
 	U64 mTransactionID;
-	
-	PacketType currentPacket;
+
+	PacketType mCurrentPacket;
 	
 	std::vector<U64> mMdcPosedgeArrows;
 	std::vector<U64> mMdcNegedgeArrows;
