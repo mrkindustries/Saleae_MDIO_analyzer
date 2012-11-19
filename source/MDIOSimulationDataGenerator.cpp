@@ -13,8 +13,8 @@ void MDIOSimulationDataGenerator::Initialize( U32 simulation_sample_rate, MDIOAn
 	mSimulationSampleRateHz = simulation_sample_rate;
 	mSettings = settings;
 
-	// 400 Khz is the most frequently used frequency
-	mClockGenerator.Init( 400000, mSimulationSampleRateHz ); 
+    // 1.7 Mhz is a commonly used frequency
+    mClockGenerator.Init( 1700000*2, mSimulationSampleRateHz );
 	
 	// Set the simulation channels
     mMdio = mSimulationChannels.Add( mSettings->mMdioChannel, mSimulationSampleRateHz, BIT_HIGH );
@@ -226,7 +226,7 @@ void MDIOSimulationDataGenerator::CreateData(U16 data)
         CreateBit( bit_extractor.GetNextBit() );
     }
 
-    CreateBit( BIT_HIGH );  // Release the bus (normally pulled up) 
+    CreateBit( BIT_HIGH );  // Release the bus (normally pulled up)
 
 }
 

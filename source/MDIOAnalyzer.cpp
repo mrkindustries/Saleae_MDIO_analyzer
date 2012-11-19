@@ -30,8 +30,7 @@ void MDIOAnalyzer::WorkerThread()
 	mMdc = GetAnalyzerChannelData( mSettings->mMdcChannel );
 
 	for( ; ; )
-	{	
-		
+    {
 		// normally pulled up
 		AdvanceToHighMDIO();
 		
@@ -309,7 +308,7 @@ void MDIOAnalyzer::ProcessTAFrameInWritePacket()
 	
 	Frame frame;
 	frame.mType = MDIO_TA;
-	// We display as an error if the TA bits are not "10"
+    // display as an error if the TA bits are not "10"
 	frame.mFlags = ( bit0 == BIT_HIGH and bit1 == BIT_LOW ) ? 0 : DISPLAY_AS_ERROR_FLAG;
 	frame.mStartingSampleInclusive = starting_sample;
 	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
@@ -323,10 +322,10 @@ void MDIOAnalyzer::ProcessTAFrameInReadPacket()
 	// starting sample of the TA frame
 	U64 starting_sample = mMdio->GetSampleNumber()+1;
 
-	mMdc->AdvanceToNextEdge(); //posedge
-	
+    mMdc->AdvanceToNextEdge(); // posedge
 	mMdc->AdvanceToNextEdge(); // negedge 
-	mMdio->AdvanceToAbsPosition( mMdc->GetSampleNumber() );  // move to the mMdc nededge
+
+    mMdio->AdvanceToAbsPosition( mMdc->GetSampleNumber() );  // move to the mMdc negedge
 	mMdcNegedgeArrows.push_back( mMdc->GetSampleNumber() );
 	
 	BitState bit_state = mMdio->GetBitState(); 				 // sample the mMdio channel
