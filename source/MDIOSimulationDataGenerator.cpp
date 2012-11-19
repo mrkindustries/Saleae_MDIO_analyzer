@@ -18,7 +18,7 @@ void MDIOSimulationDataGenerator::Initialize( U32 simulation_sample_rate, MDIOAn
 	
 	// Set the simulation channels
     mMdio = mSimulationChannels.Add( mSettings->mMdioChannel, mSimulationSampleRateHz, BIT_HIGH );
-    mMdc = mSimulationChannels.Add( mSettings->mMdcChannel, mSimulationSampleRateHz, BIT_HIGH );
+    mMdc = mSimulationChannels.Add( mSettings->mMdcChannel, mSimulationSampleRateHz, BIT_LOW );
 
 	// start the simulation with 10 periods of idle
     mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 20.0 ) );
@@ -226,7 +226,10 @@ void MDIOSimulationDataGenerator::CreateData(U16 data)
         CreateBit( bit_extractor.GetNextBit() );
     }
 
-    CreateBit( BIT_HIGH );  // Release the bus (normally pulled up)
+    mMdio->TransitionIfNeeded( BIT_HIGH );  // Release the bus (normally pulled up)
+
+    mSimulationChannels.AdvanceAll( mClockGenerator.AdvanceByHalfPeriod( 0.5 ) );
+    mMdc->TransitionIfNeeded( BIT_LOW );    // clk must remain low on idle
 
 }
 
