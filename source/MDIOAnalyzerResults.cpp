@@ -82,9 +82,24 @@ void MDIOAnalyzerResults::GenC45DevTypeString(const Frame & frame, DisplayBase d
 	AddResultString("DEVTYPE [", devtype, "] - ", number_str);
 }
 
-void MDIOAnalyzerResults::GenTAString(const Frame & frame, DisplayBase display_base) 
+void MDIOAnalyzerResults::GenTAString(const Frame & frame, DisplayBase display_base, bool tabular) 
 {
-	AddResultString( "TA" );
+	if ( frame.mFlags & DISPLAY_AS_ERROR_FLAG ) 
+	{
+		if (!tabular) 
+		{
+			AddResultString( "!TA" );
+		}
+			AddResultString( "!Turnaround" );
+	}
+	else 
+	{
+		if (!tabular) 
+		{
+			AddResultString( "TA" );
+		}
+		AddResultString( "Turnaround" );
+	}
 }
 
 void MDIOAnalyzerResults::GenC22DataString(const Frame & frame, DisplayBase display_base, bool tabular) 
@@ -119,10 +134,10 @@ void MDIOAnalyzerResults::GenUnknownString(bool tabular)
 {
 	if( !tabular ) 
 	{
-		AddResultString("U");
-		AddResultString("Ukw");
+		AddResultString("!U");
+		AddResultString("!Ukw");
 	}
-	AddResultString("Unknown");
+	AddResultString("!Unknown");
 }
 
 void MDIOAnalyzerResults::GenBubbleText(U64 frame_index, DisplayBase display_base, bool tabular) 
@@ -147,7 +162,7 @@ void MDIOAnalyzerResults::GenBubbleText(U64 frame_index, DisplayBase display_bas
 		case MDIO_C45_DEVTYPE_PHY_XS: 	GenC45DevTypeString(frame, display_base, "PHY XS", tabular); break;
 		case MDIO_C45_DEVTYPE_DTE_XS: 	GenC45DevTypeString(frame, display_base, "DTE XS", tabular); break;
 		case MDIO_C45_DEVTYPE_OTHER: 	GenC45DevTypeString(frame, display_base, "Other", tabular); break;
-		case MDIO_TA: 					GenTAString(frame, display_base); break;
+		case MDIO_TA: 					GenTAString(frame, display_base, tabular); break;
 		case MDIO_C22_DATA: 			GenC22DataString(frame, display_base, tabular); break;
 		case MDIO_C45_ADDR: 			GenC45AddrDataString(frame, display_base, "A", "ADDR", "Address", tabular); break;
 		case MDIO_C45_DATA: 			GenC45AddrDataString(frame, display_base, "D", "DATA", "Data", tabular); break;
@@ -292,8 +307,8 @@ void MDIOAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
 		// MDIO_C22_DATA or MDIO_C45_ADDRDATA frame
 		frame = GetFrame( frame_id );
 		
-		if( frame.mType == MDIO_C22_DATA or 
-			frame.mType == MDIO_C45_ADDR or 
+		if( frame.mType == MDIO_C22_DATA || 
+			frame.mType == MDIO_C45_ADDR || 
 			frame.mType == MDIO_C45_DATA ) 
 		{
 			char number_str[128];

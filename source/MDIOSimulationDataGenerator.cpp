@@ -108,8 +108,8 @@ void MDIOSimulationDataGenerator::CreateMdioC45Transaction( MdioOpCode opCode, U
 
 bool MDIOSimulationDataGenerator::IsReadOperation( MdioOpCode opcode )
 {
-	return ( opcode == C22_READ or
-			 opcode == C45_READ_AND_ADDR or
+	return ( opcode == C22_READ ||
+			 opcode == C45_READ_AND_ADDR ||
 			 opcode == C45_READ );
 }
 

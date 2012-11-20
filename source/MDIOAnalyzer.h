@@ -60,8 +60,8 @@ protected:
 	MDIOSimulationDataGenerator mSimulationDataGenerator;
 	bool mSimulationInitialized;
 
-	U8 mPacketInTransaction;
-	U64 mTransactionID;
+	// U8 mPacketInTransaction;
+	// U64 mTransactionID;
 
 	PacketType mCurrentPacket;
 

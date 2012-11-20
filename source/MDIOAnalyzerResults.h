@@ -45,7 +45,7 @@ protected:
 	void GenC45DevTypeString(const Frame & frame, DisplayBase display_base, 
 							 const char* devtype, bool tabular);
 	void GenC45DevType(const Frame & frame, DisplayBase display_base, bool tabular); 
-    void GenTAString(const Frame & frame, DisplayBase display_base); 
+    void GenTAString(const Frame & frame, DisplayBase display_base, bool tabular); 
     void GenC22DataString(const Frame & frame, DisplayBase display_base, bool tabular); 
     void GenC45AddrDataString(const Frame & frame, DisplayBase display_base, 
 							  const char* str0, const char* str1, const char* str2,

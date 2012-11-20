@@ -22,8 +22,8 @@ void MDIOAnalyzer::WorkerThread()
 	mResults->AddChannelBubblesWillAppearOn( mSettings->mMdioChannel );
 	
 	mSampleRateHz = GetSampleRate();
-	mPacketInTransaction = 0;
-	mTransactionID = 0;
+	// mPacketInTransaction = 0;
+	// mTransactionID = 0;
 
 	// mMDio and mMdc have the actual data from the channel
 	mMdio = GetAnalyzerChannelData( mSettings->mMdioChannel );
@@ -56,19 +56,23 @@ void MDIOAnalyzer::WorkerThread()
 		// commit the generated frames to a packet
 		U64 packet_id = mResults->CommitPacketAndStartNewPacket();
 
+		// NOTE: For future support of transactions in MDIOAnalyzer class
 		// add the current packet to the current transaction
-		mResults->AddPacketToTransaction( mTransactionID, packet_id );
+		// mResults->AddPacketToTransaction( mTransactionID, packet_id );
 
 		// finally commit the results to the MDIOAnalyzerResults class
 		mResults->CommitResults();
 		
+		// NOTE: For future support of transactions in MDIOAnalyzer class
 		// Check if it is the end of a C22 or C45 transaction (C45 transaction consists of two frames)
-		if( ( mCurrentPacket.clause == MDIO_C22_PACKET ) or 
-			( mCurrentPacket.clause == MDIO_C45_PACKET and mPacketInTransaction == 2 ) ) 
+		/*
+		if( ( mCurrentPacket.clause == MDIO_C22_PACKET ) ||
+			( mCurrentPacket.clause == MDIO_C45_PACKET && mPacketInTransaction == 2 ) ) 
 		{
 			mTransactionID++;
 			mPacketInTransaction = 0;
 		}
+		*/
 	}
 }
 
@@ -121,10 +125,14 @@ void MDIOAnalyzer::ProcessStartFrame()
 	ReportProgress( frame.mEndingSampleInclusive );
 
 	mCurrentPacket.clause = ( frame.mType == MDIO_C22_START ) ? MDIO_C22_PACKET : MDIO_C45_PACKET;
+	
+	// NOTE: For future support of transactions in MDIOAnalyzer class
+	/*
 	if( mCurrentPacket.clause == MDIO_C45_PACKET ) 
 	{
 		mPacketInTransaction++;
 	}
+	*/
 }
 
 void MDIOAnalyzer::ProcessOpcodeFrame() 
@@ -139,7 +147,7 @@ void MDIOAnalyzer::ProcessOpcodeFrame()
 
 	// reconstruct the opcode 
 	DataBuilder opcode;
-	U64 value;
+	U64 value=0;
 	opcode.Reset( &value, AnalyzerEnums::MsbFirst, 2 );
 	opcode.AddBit(bit0);
 	opcode.AddBit(bit1);
@@ -202,7 +210,7 @@ void MDIOAnalyzer::ProcessOpcodeFrame()
 	
 	if( frame.mType == MDIO_UNKNOWN ) 
 	{
-		frame.mFlags = DISPLAY_AS_WARNING_FLAG;
+		frame.mFlags = DISPLAY_AS_ERROR_FLAG;
 	}
 	else 
 	{
@@ -304,7 +312,7 @@ void MDIOAnalyzer::ProcessTAFrameInWritePacket()
 	Frame frame;
 	frame.mType = MDIO_TA;
 	// display as an error if the TA bits are not "10"
-	frame.mFlags = ( bit0 == BIT_HIGH and bit1 == BIT_LOW ) ? 0 : DISPLAY_AS_ERROR_FLAG;
+	frame.mFlags = ( bit0 == BIT_HIGH && bit1 == BIT_LOW ) ? 0 : DISPLAY_AS_ERROR_FLAG;
 	frame.mStartingSampleInclusive = starting_sample;
 	frame.mEndingSampleInclusive = mMdio->GetSampleNumber();
 
